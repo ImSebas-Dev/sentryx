@@ -1,0 +1,10 @@
+# Secretos locales: no versionar nunca el .env real (usar .env.example)
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+backend/staticfiles/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/

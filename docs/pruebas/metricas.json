@@ -1,0 +1,117 @@
+{
+ "confusion": {
+  "tp": 55,
+  "fn": 5,
+  "fp": 1,
+  "tn": 39
+ },
+ "accuracy": 0.94,
+ "precision": 0.9821,
+ "recall": 0.9167,
+ "f1": 0.9483,
+ "false_positive_rate": 0.025,
+ "by_type": {
+  "bec": {
+   "n": 10,
+   "detected": 9,
+   "type_correct": 3,
+   "mean_score": 55.2,
+   "classifications": {
+    "legitimate": 1,
+    "suspicious": 9,
+    "phishing": 0,
+    "critical": 0
+   }
+  },
+  "clone": {
+   "n": 8,
+   "detected": 8,
+   "type_correct": 3,
+   "mean_score": 61.2,
+   "classifications": {
+    "legitimate": 0,
+    "suspicious": 6,
+    "phishing": 0,
+    "critical": 2
+   }
+  },
+  "generic": {
+   "n": 9,
+   "detected": 9,
+   "type_correct": 1,
+   "mean_score": 75.5,
+   "classifications": {
+    "legitimate": 0,
+    "suspicious": 1,
+    "phishing": 6,
+    "critical": 2
+   }
+  },
+  "legitimate": {
+   "n": 40,
+   "detected": 1,
+   "type_correct": 0,
+   "mean_score": 27.2,
+   "classifications": {
+    "legitimate": 39,
+    "suspicious": 1,
+    "phishing": 0,
+    "critical": 0
+   }
+  },
+  "smishing": {
+   "n": 8,
+   "detected": 7,
+   "type_correct": 2,
+   "mean_score": 52.2,
+   "classifications": {
+    "legitimate": 1,
+    "suspicious": 7,
+    "phishing": 0,
+    "critical": 0
+   }
+  },
+  "spear": {
+   "n": 9,
+   "detected": 9,
+   "type_correct": 3,
+   "mean_score": 67.4,
+   "classifications": {
+    "legitimate": 0,
+    "suspicious": 4,
+    "phishing": 5,
+    "critical": 0
+   }
+  },
+  "vishing": {
+   "n": 8,
+   "detected": 5,
+   "type_correct": 5,
+   "mean_score": 49.8,
+   "classifications": {
+    "legitimate": 3,
+    "suspicious": 5,
+    "phishing": 0,
+    "critical": 0
+   }
+  },
+  "whaling": {
+   "n": 8,
+   "detected": 8,
+   "type_correct": 3,
+   "mean_score": 72.5,
+   "classifications": {
+    "legitimate": 0,
+    "suspicious": 4,
+    "phishing": 3,
+    "critical": 1
+   }
+  }
+ },
+ "latency_ms": {
+  "inference_mean": 80.5,
+  "inference_p95": 108.5,
+  "roundtrip_mean": 107.5,
+  "roundtrip_p95": 139.4
+ }
+}

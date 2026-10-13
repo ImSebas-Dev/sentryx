@@ -1,0 +1,54 @@
+{
+  "headers_rf_v1": {
+    "f1": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "roc_auc": 1.0,
+    "cv_f1": 0.9978,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "top_features": [
+      "from_has_hyphens",
+      "spf_pass",
+      "dkim_pass",
+      "dmarc_pass",
+      "min_brand_distance"
+    ]
+  },
+  "content_svm_v1": {
+    "f1": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "roc_auc": 1.0,
+    "cv_f1": 0.9978,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "f1_type_weighted": 1.0,
+    "top_phishing_words": [
+      "para",
+      "http",
+      "enlace",
+      "que",
+      "el",
+      "urgente",
+      "24",
+      "tu cuenta"
+    ]
+  },
+  "url_rf_v1": {
+    "f1": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "roc_auc": 1.0,
+    "cv_f1": 1.0,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "top_features": [
+      "url_length",
+      "path_length",
+      "has_https",
+      "domain_length",
+      "hyphens_in_domain"
+    ]
+  }
+}

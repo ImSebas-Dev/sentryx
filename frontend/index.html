@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#fafafa" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>Sentryx — Detección de Phishing</title>
+    <link rel="icon" type="image/svg+xml" href="/shield.svg" />
+    <script>
+      // Aplica el tema antes del primer pintado (evita el destello claro/oscuro).
+      // Debe coincidir con la lógica de src/store/ThemeContext.jsx.
+      (function () {
+        var mode = 'system'
+        try { mode = localStorage.getItem('sentryx-theme') || 'system' } catch (e) {}
+        var dark = mode === 'dark' ||
+          (mode === 'system' && window.matchMedia &&
+           window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var theme = dark ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', theme)
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', dark ? '#141414' : '#fafafa')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

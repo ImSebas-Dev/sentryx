@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Sentryx</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Iconos (estilo Fluent, trazo 1.75) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+      <symbol id="i-warning" viewBox="0 0 24 24"><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+      <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header class="header">
+    <div class="brand">
+      <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
+      <div>
+        <p class="brand-name">Sentryx</p>
+        <p class="brand-sub">Detector de phishing</p>
+      </div>
+    </div>
+    <button id="btn-settings" class="btn-icon" title="Configuración" aria-label="Configuración">
+      <svg class="icon"><use href="#i-settings"/></svg>
+    </button>
+  </header>
+
+  <!-- ── Vista principal ─────────────────────────────────── -->
+  <main id="view-main" class="view">
+
+    <!-- Estado: sin correo abierto -->
+    <section id="state-no-email" class="state state-center hidden">
+      <span class="state-icon tone-neutral"><svg class="icon"><use href="#i-inbox"/></svg></span>
+      <p class="state-title">Ningún correo abierto</p>
+      <p id="no-email-desc" class="state-desc">Abre un correo en Gmail u Outlook<br>y vuelve a hacer clic aquí.</p>
+    </section>
+
+    <!-- Estado: correo detectado, listo para analizar -->
+    <section id="state-ready" class="state hidden">
+      <p class="overline">Correo detectado</p>
+      <dl class="email-preview">
+        <div class="email-field">
+          <dt class="field-label">De</dt>
+          <dd id="preview-from" class="field-value"></dd>
+        </div>
+        <div class="email-field">
+          <dt class="field-label">Asunto</dt>
+          <dd id="preview-subject" class="field-value strong"></dd>
+        </div>
+        <div class="email-field">
+          <dt class="field-label">Servicio</dt>
+          <dd class="field-value"><span id="preview-service" class="badge badge-brand"></span></dd>
+        </div>
+      </dl>
+      <button id="btn-analyze" class="btn btn-primary btn-lg">
+        <svg class="icon"><use href="#i-search"/></svg>
+        Analizar correo
+      </button>
+      <p class="privacy-note">
+        <svg class="icon icon-sm"><use href="#i-lock"/></svg>
+        Los datos se seudonimizan antes de guardarse
+      </p>
+    </section>
+
+    <!-- Estado: analizando -->
+    <section id="state-loading" class="state state-center hidden" aria-live="polite">
+      <div class="spinner" role="status" aria-label="Analizando"></div>
+      <p class="state-title">Analizando…</p>
+      <p class="state-desc">Consultando el motor de detección</p>
+      <ol class="loading-steps">
+        <li class="step" id="step-headers">Encabezados</li>
+        <li class="step" id="step-content">Contenido</li>
+        <li class="step" id="step-urls">URLs</li>
+      </ol>
+    </section>
+
+    <!-- Estado: resultado -->
+    <section id="state-result" class="state result hidden" aria-live="polite">
+
+      <div class="result-hero">
+        <div id="result-score-box" class="score-ring">
+          <svg viewBox="0 0 96 96" aria-hidden="true">
+            <circle class="ring-track" cx="48" cy="48" r="42" />
+            <circle id="result-ring" class="ring-value" cx="48" cy="48" r="42" />
+          </svg>
+          <div class="ring-label">
+            <span id="result-score" class="score-number">--</span>
+            <span class="score-label">/ 100</span>
+          </div>
+        </div>
+        <div class="result-summary">
+          <p id="result-classification" class="classification-label"></p>
+          <div class="result-badges">
+            <span id="result-type-badge" class="badge"></span>
+            <span id="result-mitre" class="badge badge-mono"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barras por capa -->
+      <div class="layers">
+        <p class="overline">Desglose por capa</p>
+        <div class="layer">
+          <div class="layer-header">
+            <span class="layer-name">Encabezados <span class="layer-weight">35%</span></span>
+            <span id="val-headers" class="layer-value">0</span>
+          </div>
+          <div class="layer-bar-bg"><div id="bar-headers" class="layer-bar"></div></div>
+        </div>
+        <div class="layer">
+          <div class="layer-header">
+            <span class="layer-name">Contenido <span class="layer-weight">40%</span></span>
+            <span id="val-content" class="layer-value">0</span>
+          </div>
+          <div class="layer-bar-bg"><div id="bar-content" class="layer-bar"></div></div>
+        </div>
+        <div class="layer">
+          <div class="layer-header">
+            <span class="layer-name">URLs <span class="layer-weight">25%</span></span>
+            <span id="val-urls" class="layer-value">0</span>
+          </div>
+          <div class="layer-bar-bg"><div id="bar-urls" class="layer-bar"></div></div>
+        </div>
+      </div>
+
+      <!-- Estado de la alerta -->
+      <p id="result-alert-status" class="alert-status"></p>
+
+      <!-- Botones de acción -->
+      <div class="actions">
+        <button id="btn-view-alert" class="btn btn-primary hidden">
+          Ver alerta en Sentryx
+          <svg class="icon"><use href="#i-external"/></svg>
+        </button>
+        <button id="btn-analyze-again" class="btn btn-secondary">
+          <svg class="icon"><use href="#i-refresh"/></svg>
+          Analizar de nuevo
+        </button>
+      </div>
+    </section>
+
+    <!-- Estado: error -->
+    <section id="state-error" class="state state-center hidden">
+      <span class="state-icon tone-danger"><svg class="icon"><use href="#i-alert"/></svg></span>
+      <p class="state-title">No se pudo analizar</p>
+      <p id="error-message" class="state-desc" role="alert"></p>
+      <button id="btn-retry" class="btn btn-primary">
+        <svg class="icon"><use href="#i-refresh"/></svg>
+        Reintentar
+      </button>
+    </section>
+
+  </main>
+
+  <!-- ── Vista de configuración ──────────────────────────── -->
+  <main id="view-settings" class="view hidden">
+    <div class="settings-head">
+      <button id="btn-back" class="btn-icon" aria-label="Volver" title="Volver">
+        <svg class="icon"><use href="#i-arrow-left"/></svg>
+      </button>
+      <h2 class="settings-title">Configuración</h2>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="input-backend-url">URL del backend</label>
+      <input type="url" id="input-backend-url" class="setting-input"
+             placeholder="http://localhost/api/v1" spellcheck="false" />
+      <p class="setting-hint">Por defecto: http://localhost/api/v1. Si usas otro servidor, Chrome te pedirá permiso para conectarte a él.</p>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="input-email">Correo electrónico</label>
+      <input type="email" id="input-email" class="setting-input"
+             placeholder="analista@sentryx.local" autocomplete="username" />
+      <p class="setting-hint">El mismo correo con el que entras al dashboard.</p>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label" for="input-password">Contraseña</label>
+      <input type="password" id="input-password" class="setting-input"
+             placeholder="••••••••" autocomplete="current-password" />
+      <p class="setting-hint">No se guarda: solo se usa para iniciar sesión.</p>
+    </div>
+
+    <!-- Segundo paso: se muestra si la cuenta tiene verificación en dos pasos.
+         La ayuda va encima del campo para que el autocompletado no la tape. -->
+    <div id="mfa-group" class="setting-group hidden">
+      <label class="setting-label" for="input-mfa-code" id="mfa-label">Código de verificación</label>
+      <p class="setting-hint mfa-hint" id="mfa-hint">Escribe el código de 6 dígitos de Google Authenticator o Microsoft Authenticator.</p>
+      <input type="text" id="input-mfa-code" class="setting-input mfa-input"
+             inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6"
+             spellcheck="false" aria-describedby="mfa-hint" />
+      <div class="mfa-links">
+        <button type="button" id="btn-mfa-mode" class="link-btn">Usar código de recuperación</button>
+        <button type="button" id="btn-mfa-cancel" class="link-btn">Volver</button>
+      </div>
+    </div>
+
+    <div id="settings-status" class="settings-status hidden" role="status"></div>
+
+    <div class="actions">
+      <button id="btn-save-settings" class="btn btn-primary btn-lg">Guardar y conectar</button>
+      <button id="btn-logout" class="btn btn-danger hidden">
+        <svg class="icon"><use href="#i-logout"/></svg>
+        Cerrar sesión
+      </button>
+    </div>
+
+    <div id="connection-info" class="connection-info hidden">
+      <span id="connection-dot" class="dot"></span>
+      <span id="connection-text"></span>
+    </div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

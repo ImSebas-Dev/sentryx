@@ -1,0 +1,304 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Sentryx — Tokens de diseño basados en Fluent 2.
+ * Cada color es un triplete RGB para poder usar opacidad en Tailwind
+ * (p. ej. bg-fg/5). El tema se elige con data-theme en <html>; el script
+ * de index.html lo aplica antes del primer pintado para evitar parpadeos.
+ */
+@layer base {
+  :root,
+  [data-theme='light'] {
+    color-scheme: light;
+
+    --canvas:        245 245 245;
+    --nav:           250 250 250;
+    --layer:         255 255 255;
+    --subtle:        250 250 250;
+    --stroke:        224 224 224;
+    --stroke-strong: 209 209 209;
+
+    --fg:   36 36 36;
+    --fg-2: 66 66 66;
+    --fg-3: 97 97 97;
+    --fg-4: 112 112 112;
+
+    --brand:         15 108 189;
+    --brand-hover:   17 94 163;
+    --brand-pressed: 12 59 94;
+    --brand-fg:      15 108 189;
+    --brand-tint:    235 243 252;
+    --brand-line:    180 214 250;
+    --on-brand:      255 255 255;
+    --focus:         0 0 0;
+
+    --red-fg: 188 47 50;     --red-tint: 253 246 246;    --red-line: 241 187 188;    --red-solid: 209 52 56;
+    --orange-fg: 196 53 1;   --orange-tint: 253 246 243; --orange-line: 244 191 171; --orange-solid: 218 59 1;
+    --yellow-fg: 135 85 0;   --yellow-tint: 254 251 244; --yellow-line: 249 226 174; --yellow-solid: 234 163 0;
+    --green-fg: 14 112 14;   --green-tint: 241 250 241;  --green-line: 159 216 159;  --green-solid: 16 124 16;
+    --purple-fg: 92 46 145;  --purple-tint: 247 244 251; --purple-line: 198 177 222; --purple-solid: 135 100 184;
+    --teal-fg: 0 102 109;    --teal-tint: 240 250 250;   --teal-line: 155 217 219;   --teal-solid: 3 131 135;
+    --pink-fg: 162 30 148;   --pink-tint: 253 245 252;   --pink-line: 237 187 231;   --pink-solid: 194 57 179;
+    --blue-fg: 15 108 189;   --blue-tint: 235 243 252;   --blue-line: 180 214 250;   --blue-solid: 15 108 189;
+    --gray-fg: 66 66 66;     --gray-tint: 245 245 245;   --gray-line: 224 224 224;   --gray-solid: 138 138 138;
+
+    --shadow-ambient: 0.12;
+    --shadow-key:     0.14;
+  }
+
+  [data-theme='dark'] {
+    color-scheme: dark;
+
+    --canvas:        31 31 31;
+    --nav:           20 20 20;
+    --layer:         41 41 41;
+    --subtle:        31 31 31;
+    --stroke:        61 61 61;
+    --stroke-strong: 102 102 102;
+
+    --fg:   255 255 255;
+    --fg-2: 214 214 214;
+    --fg-3: 173 173 173;
+    --fg-4: 153 153 153;
+
+    --brand:         17 94 163;
+    --brand-hover:   15 108 189;
+    --brand-pressed: 12 59 94;
+    --brand-fg:      71 158 245;
+    --brand-tint:    8 35 56;
+    --brand-line:    15 84 140;
+    --on-brand:      255 255 255;
+    --focus:         255 255 255;
+
+    --red-fg: 227 125 128;   --red-tint: 63 16 17;       --red-line: 145 39 41;      --red-solid: 209 52 56;
+    --orange-fg: 233 131 94; --orange-tint: 65 18 0;     --orange-line: 154 44 0;    --orange-solid: 218 59 1;
+    --yellow-fg: 242 198 97; --yellow-tint: 70 49 0;     --yellow-line: 163 106 0;   --yellow-solid: 234 163 0;
+    --green-fg: 84 176 84;   --green-tint: 5 37 5;       --green-line: 16 124 16;    --green-solid: 16 124 16;
+    --purple-fg: 160 131 201;--purple-tint: 36 18 58;    --purple-line: 88 50 133;   --purple-solid: 135 100 184;
+    --teal-fg: 76 180 183;   --teal-tint: 0 37 38;       --teal-line: 2 101 104;     --teal-solid: 3 131 135;
+    --pink-fg: 218 126 208;  --pink-tint: 58 14 52;      --pink-line: 140 33 129;    --pink-solid: 194 57 179;
+    --blue-fg: 71 158 245;   --blue-tint: 8 35 56;       --blue-line: 15 84 140;     --blue-solid: 71 158 245;
+    --gray-fg: 214 214 214;  --gray-tint: 51 51 51;      --gray-line: 82 82 82;      --gray-solid: 138 138 138;
+
+    --shadow-ambient: 0.24;
+    --shadow-key:     0.28;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    /* Evitar que iOS agrande el texto al girar el celular */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-fg font-sans text-body antialiased;
+    /* Quitar el resaltado gris al tocar elementos en móviles */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection { background: rgb(var(--brand) / 0.25); }
+
+  /* Scrollbar discreta al estilo Fluent (solo navegadores de escritorio) */
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--fg) / 0.25) transparent; }
+  ::-webkit-scrollbar       { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--fg) / 0.22);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--fg) / 0.4); }
+
+  /* WCAG 2.4.11 — Foco visible: anillo de 2px al estilo Fluent */
+  *:focus-visible {
+    outline: 2px solid rgb(var(--focus));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  *:focus:not(:focus-visible) { outline: none; }
+
+  /*
+   * iOS Safari hace zoom automático al enfocar campos con letra menor a 16px.
+   * En pantallas pequeñas se fuerza 16px en todos los campos de formulario.
+   */
+  @media (max-width: 639px) {
+    input, select, textarea { font-size: 16px !important; }
+  }
+
+  /* Respetar a quien pide reducir animaciones en su sistema operativo */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Contenedor raíz de la app autenticada.
+   * 100dvh descuenta la barra de direcciones de los navegadores móviles.
+   */
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* Contenido de cada página: ancho máximo y márgenes consistentes */
+  .page {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6
+           animate-fade-in;
+  }
+  /* Páginas de contenido estrecho: se limita el ancho de los hijos, no el
+     del contenedor, para que el borde izquierdo coincida con el resto. */
+  .page-narrow > * { @apply max-w-3xl; }
+
+  /* ── Tipografía ─────────────────────────────────────── */
+  .text-page-title   { @apply text-title3 font-semibold text-fg tracking-tight; }
+  .text-section      { @apply text-subtitle2 font-semibold text-fg; }
+  .text-overline     { @apply text-caption font-semibold text-fg-3 uppercase tracking-wide; }
+
+  /* ── Superficies ────────────────────────────────────── */
+  .card {
+    @apply bg-layer border border-stroke rounded-lg shadow-2;
+  }
+  .card-interactive {
+    @apply card transition-[box-shadow,border-color,transform] duration-150 ease-fluent
+           hover:shadow-8 hover:border-stroke-strong;
+  }
+  .card-header {
+    @apply flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-stroke;
+  }
+  .well {
+    @apply bg-subtle border border-stroke rounded-md;
+  }
+
+  /* ── Botones (Fluent: 32px, radio 4px, texto seminegrita) ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-8 px-3 rounded
+           text-body font-semibold whitespace-nowrap select-none
+           border border-transparent
+           transition-colors duration-100 ease-fluent
+           disabled:cursor-not-allowed disabled:bg-fg/[0.06] disabled:text-fg-4
+           disabled:border-transparent disabled:shadow-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-on-brand shadow-2
+           hover:bg-brand-hover active:bg-brand-pressed;
+  }
+  .btn-secondary {
+    @apply btn bg-layer text-fg border-stroke-strong
+           hover:bg-fg/[0.05] hover:border-fg/30 active:bg-fg/[0.09];
+  }
+  .btn-ghost {
+    @apply btn text-fg-2 font-normal
+           hover:bg-fg/[0.06] hover:text-fg active:bg-fg/[0.1]
+           disabled:bg-transparent;
+  }
+  .btn-danger {
+    @apply btn bg-layer text-red-fg border-red-line
+           hover:bg-red-tint active:bg-red-tint;
+  }
+  .btn-success {
+    @apply btn bg-green-solid text-white shadow-2 hover:brightness-110 active:brightness-95;
+  }
+  .btn-lg   { @apply h-10 px-4; }
+  .btn-icon { @apply w-8 px-0; }
+  .btn-icon.btn-lg { @apply w-10; }
+
+  /* ── Campos de formulario ───────────────────────────── */
+  .field-label {
+    @apply block text-body font-semibold text-fg-2 mb-1.5;
+  }
+  .field-hint {
+    @apply text-caption text-fg-3 mt-1.5;
+  }
+  /* Fluent: borde fino + borde inferior más oscuro; al enfocar,
+     el borde inferior pasa a la marca (indicador de foco del campo). */
+  .input {
+    @apply w-full min-h-[32px] px-2.5 py-[5px] rounded
+           bg-layer text-body text-fg placeholder:text-fg-4
+           border border-stroke-strong border-b-fg-3/70
+           transition-[border-color,box-shadow] duration-100 ease-fluent
+           hover:border-fg/30 hover:border-b-fg-2
+           focus:outline-none focus:border-b-brand-fg
+           focus:shadow-[inset_0_-1px_0_rgb(var(--brand-fg))]
+           disabled:bg-fg/[0.04] disabled:text-fg-4 disabled:cursor-not-allowed;
+  }
+  .input:focus-visible { outline: none; }
+  .input-lg { @apply min-h-[40px] px-3 py-[9px]; }
+  textarea.input { @apply leading-relaxed; }
+
+  /* ── Badges (Fluent: forma circular, apariencia "tint") ── */
+  .badge {
+    @apply inline-flex items-center gap-1 h-5 px-2 rounded-full border
+           text-caption font-semibold whitespace-nowrap;
+  }
+  .badge-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full bg-current flex-shrink-0;
+  }
+
+  /* ── Enlaces ────────────────────────────────────────── */
+  .link {
+    @apply text-brand-fg font-medium underline-offset-2 hover:underline
+           hover:text-brand-hover;
+  }
+
+  /* ── Navegación lateral ─────────────────────────────── */
+  .nav-item {
+    @apply relative flex items-center gap-3 h-10 px-3 rounded-md text-body text-fg-2
+           transition-colors duration-100 ease-fluent
+           hover:bg-fg/[0.05] hover:text-fg active:bg-fg/[0.08];
+  }
+  .nav-item[aria-current='page'],
+  .nav-item.is-active {
+    @apply bg-fg/[0.07] text-fg font-semibold;
+  }
+  /* Indicador de selección: pastilla vertical de color de marca */
+  .nav-item.is-active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-brand-fg;
+  }
+  .nav-item.is-active svg { @apply text-brand-fg; }
+
+  /* ── Tablas ─────────────────────────────────────────── */
+  .table-head {
+    @apply text-left px-4 py-2.5 text-caption font-semibold text-fg-3 bg-subtle
+           border-b border-stroke whitespace-nowrap;
+  }
+  .table-row {
+    @apply border-b border-stroke last:border-0 transition-colors duration-100
+           hover:bg-fg/[0.03] cursor-pointer;
+  }
+
+  /* ── Control segmentado (TabList de Fluent) ─────────── */
+  .segmented {
+    @apply inline-grid grid-flow-col auto-cols-fr gap-1 p-1 rounded-md bg-fg/[0.05]
+           border border-stroke;
+  }
+  .segmented-item {
+    @apply flex items-center justify-center gap-2 h-8 px-3 rounded text-body text-fg-2
+           transition-[background-color,color,box-shadow] duration-150 ease-fluent
+           hover:text-fg;
+  }
+  .segmented-item[aria-checked='true'] {
+    @apply bg-layer text-fg font-semibold shadow-2;
+  }
+}
+
+@layer utilities {
+  /* En dispositivos táctiles, áreas de toque de al menos 44px (WCAG 2.5.8) */
+  @media (pointer: coarse) {
+    .btn, .nav-item, .segmented-item { min-height: 44px; }
+    .btn-icon { min-width: 44px; }
+    .input { min-height: 44px; }
+  }
+
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+}

@@ -1,0 +1,44 @@
+# ══════════════════════════════════════════════════════════════════
+#  Sentryx v2 — Regla SIGMA: BEC de alto riesgo
+#  MITRE ATT&CK: T1566.002 (Spearphishing via Service)
+# ══════════════════════════════════════════════════════════════════
+
+title: Business Email Compromise con score crítico
+id: sentryx-v2-002
+status: stable
+description: >
+    Detecta correos clasificados como BEC (Business Email Compromise)
+    con score >= 85. Este tipo de ataque es el de mayor impacto financiero
+    para empresas e-commerce y retail.
+
+tags:
+    - attack.initial_access
+    - attack.t1566.002
+    - sentryx.critical
+    - email.bec
+
+logsource:
+    product: sentryx
+    service: alerts
+
+detection:
+    bec_critical:
+        phishing_type: bec
+        risk_score|gte: 85
+        status: new
+
+    condition: bec_critical
+
+level: critical
+
+sentryx:
+    output_severity: CRITICAL
+    auto_create_incident: true
+    incident_title: "BEC crítico detectado — posible fraude financiero"
+    notify_admin: true
+    mitre_technique: "T1566.002"
+    recommendation: >
+        1. Suspender cualquier transferencia bancaria reciente solicitada por correo.
+        2. Verificar directamente con el remitente real por otro canal (teléfono).
+        3. Revisar si el dominio del remitente es una suplantación del dominio corporativo.
+        4. Registrar el incidente para cumplimiento de la Ley 1581/2012.

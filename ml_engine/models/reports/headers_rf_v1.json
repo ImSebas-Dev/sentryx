@@ -1,0 +1,13 @@
+{
+  "model": "headers_rf_v1",
+  "f1_test": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "roc_auc": 1.0,
+  "f1_cv_mean": 0.9978,
+  "n_train": 2405,
+  "n_test": 602,
+  "false_positives": 0,
+  "false_negatives": 0,
+  "n_features": 23
+}

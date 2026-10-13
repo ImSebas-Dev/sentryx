@@ -1,0 +1,34 @@
+# Overrides para desarrollo local
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+              python manage.py collectstatic --noinput &&
+              python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - DJANGO_DEBUG=True
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+
+  ml_engine:
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+
+  celery_worker:
+    command: celery -A config worker --loglevel=debug --concurrency=1 -Q default,threat_intel,alerts
+
+  # Monitor de tareas Celery — solo en dev
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sentryx_flower
+    command: celery -A config flower --port=5555
+    env_file: .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery_worker
+    networks:
+      - sentryx_net

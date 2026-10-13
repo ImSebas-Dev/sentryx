@@ -1,0 +1,928 @@
+════════════════════════════════════════════════════════════════
+  Sentryx v2 — Manual de pruebas y despliegue
+  Plataforma XDR open-source para detección de phishing por correo
+  Proyecto de Grado — Ingeniería de Sistemas — 2026
+════════════════════════════════════════════════════════════════
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. CÓMO LEVANTAR EL SISTEMA EN OTRO PC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REQUISITOS PREVIOS
+──────────────────
+  - Docker Desktop instalado y corriendo
+      Windows/Mac: https://www.docker.com/products/docker-desktop/
+      Linux:       https://docs.docker.com/engine/install/
+  - Git Bash (Windows) o terminal (Mac/Linux)
+  - Mínimo 4 GB de RAM disponibles para Docker
+  - Puerto 80 libre (no tener otro servidor web corriendo)
+
+  Verificar que todo esté instalado:
+      docker --version
+      docker compose version
+
+PASOS DE INSTALACIÓN (primera vez)
+───────────────────────────────────
+  1. Copiar la carpeta sentryx_v2 al nuevo PC
+
+  2. Abrir Git Bash y navegar a la carpeta:
+       cd /ruta/a/sentryx_v2
+
+     IMPORTANTE: el docker-compose.yml y el .env deben estar
+     en esta misma carpeta raíz. Verificar con:
+       ls
+     Deben aparecer: docker-compose.yml, docker-compose.dev.yml,
+     backend/, frontend/, ml_engine/, scripts/
+
+  3. Ejecutar el script de setup (SOLO la primera vez):
+       bash scripts/dev/setup.sh
+
+     El script hace automáticamente:
+       - Genera el archivo .env con claves fijas de desarrollo
+       - Construye las imágenes Docker (3-5 minutos)
+       - Levanta PostgreSQL y Redis
+       - Aplica las migraciones de la base de datos
+       - Crea los usuarios admin y analista con cuentas aprobadas
+       - Levanta todos los servicios
+
+  4. Al terminar, abrir en el navegador:
+       http://localhost
+
+CREDENCIALES DE PRUEBA
+──────────────────────
+  Email:      admin@sentryx.local
+  Contraseña: admin123
+  Rol:        Administrador — ve todas las alertas de todos los usuarios,
+              puede aprobar cuentas nuevas y disparar reentrenamiento
+
+  Email:      analista@sentryx.local
+  Contraseña: analista123
+  Rol:        Analista — ve solo sus propias alertas,
+              puede analizar correos y gestionar sus alertas
+
+URLS DEL SISTEMA
+────────────────
+  Dashboard principal   →  http://localhost
+  API REST              →  http://localhost/api/v1/
+  ML Engine (docs)      →  http://localhost/ml/docs
+  Panel Django Admin    →  http://localhost/admin/
+  Monitor Celery        →  http://localhost:5555
+
+COMANDOS ÚTILES DEL DÍA A DÍA
+──────────────────────────────
+  Ver qué contenedores están corriendo:
+      docker compose ps
+
+  Ver logs en tiempo real (todos los servicios):
+      docker compose logs -f
+
+  Ver logs de un servicio específico:
+      docker compose logs -f backend
+      docker compose logs -f ml_engine
+
+  Detener todos los servicios (datos conservados):
+      docker compose down
+
+  Volver a levantar sin reconstruir:
+      docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+  Reiniciar un servicio específico:
+      docker compose restart backend
+
+  Borrar todo y empezar de cero (elimina los datos):
+      docker compose down -v
+      bash scripts/dev/setup.sh
+
+CONFIGURACIÓN DE SENDGRID (envío de correos)
+─────────────────────────────────────────────
+  Sentryx envía correos para verificación de cuenta, aprobación
+  y recuperación de contraseña usando SendGrid.
+
+  Para configurarlo:
+  1. Crear cuenta gratis en https://sendgrid.com (100 correos/día)
+  2. Settings → Sender Authentication → Single Sender Verification
+     Verificar un correo tuyo (Gmail, Outlook, etc.)
+  3. Settings → API Keys → Create API Key → permisos "Mail Send"
+  4. Abrir el archivo .env y añadir:
+       SENDGRID_API_KEY=SG.tu_api_key_aqui
+       SENDGRID_FROM_EMAIL=tucorreo@gmail.com
+  5. Reiniciar el backend:
+       docker compose restart backend
+  6. Verificar que quedó cargada:
+       docker compose exec backend python manage.py shell -c "
+       from django.conf import settings
+       print(settings.SENDGRID_API_KEY[:8] + '...')
+       "
+
+  IMPORTANTE con el .env:
+    - No usar comillas alrededor del valor: SENDGRID_API_KEY=SG.xxx
+    - No dejar espacios: SENDGRID_API_KEY = SG.xxx  ← MAL
+    - El .env debe estar en la misma carpeta que docker-compose.yml
+    - Verificar: docker compose exec backend env | grep SENDGRID
+
+  Si no tienes SendGrid configurado todavía, puedes ver los correos
+  en los logs del backend:
+      docker compose logs backend -f | grep -A 5 "Subject:"
+
+SOLUCIÓN DE PROBLEMAS FRECUENTES
+─────────────────────────────────
+  Error de contraseña de PostgreSQL al levantar:
+    El volumen tiene una contraseña diferente al .env.
+    Solución:
+      docker compose down
+      docker volume rm sentryx_clean_postgres_data
+      bash scripts/dev/setup.sh
+
+  "Blocked request. This host not allowed" en el frontend:
+    Verificar que frontend/vite.config.js tiene:
+      allowedHosts: ['frontend', 'localhost', '127.0.0.1']
+    Luego: docker compose restart frontend
+
+  Error 500 al analizar correos:
+    Ver: docker compose logs backend --tail=20
+    Verificar que el ML Engine esté corriendo:
+      docker compose ps
+
+  SendGrid sigue vacío después de reiniciar:
+    Verificar que el .env esté en la carpeta raíz del proyecto
+    (la misma donde está docker-compose.yml), no en una subcarpeta.
+      find . -name ".env"
+      docker compose exec backend env | grep SENDGRID
+
+  Puerto 80 ocupado:
+    Editar docker-compose.yml, cambiar "80:80" por "8080:80"
+    Acceder a http://localhost:8080
+
+  La cuenta nueva no puede iniciar sesión:
+    El sistema requiere verificación de correo + aprobación del admin.
+    Para aprobar sin correo (solo desarrollo):
+      docker compose exec backend python manage.py shell -c "
+      from django.contrib.auth import get_user_model
+      User = get_user_model()
+      User.objects.filter(email='CORREO_AQUI').update(
+          is_email_verified=True, is_approved=True
+      )
+      print('Cuenta aprobada')
+      "
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. CORREOS DE EJEMPLO PARA PRUEBAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Instrucciones: ir a http://localhost/analyze, pegar los campos
+y hacer clic en "Analizar correo".
+Los campos Auth-Results mejoran la precisión pero son opcionales.
+
+──────────────────────────────────────────────────────────────
+  TIPO: BEC (Business Email Compromise)
+  Score esperado: 80-95  |  Severidad: CRITICAL
+──────────────────────────────────────────────────────────────
+  From:         pagos@bancolombia-seguro.tk
+  Subject:      URGENTE: Cambio de cuenta bancaria del proveedor
+  Auth-Results: spf=fail dkim=none dmarc=fail
+  Body:
+    Estimado equipo de pagos, les informamos que hemos actualizado
+    nuestra cuenta bancaria. Por favor actualicen los datos para el
+    pago de la factura pendiente de $8,500,000 COP.
+    Nueva cuenta: Davivienda 0123456789.
+    Esta actualización es efectiva desde hoy. Acción requerida urgente.
+    Haga clic aquí para confirmar: http://192.168.1.100/pago/actualizar
+
+──────────────────────────────────────────────────────────────
+  TIPO: Whaling (dirigido a ejecutivos)
+  Score esperado: 85-95  |  Severidad: CRITICAL
+──────────────────────────────────────────────────────────────
+  From:         presidente@junta-directiva.xyz
+  Subject:      CONFIDENCIAL — Aprobación inmediata requerida
+  Auth-Results: spf=fail dkim=fail dmarc=fail
+  Body:
+    Director General, necesito su aprobación urgente para una
+    operación completamente confidencial. No puede ser discutida
+    por canales internos ni con otros miembros del equipo.
+    Requiero transferencia de $50,000 USD antes del cierre de mercado.
+    No informe a nadie hasta confirmar la operación.
+    Apruebe aquí: http://portal-aprobaciones.tk/autorizar
+
+──────────────────────────────────────────────────────────────
+  TIPO: Spear Phishing (personalizado)
+  Score esperado: 65-80  |  Severidad: HIGH
+──────────────────────────────────────────────────────────────
+  From:         rrhh@tu-empresa-nomina.tk
+  Subject:      Actualización de datos bancarios — nómina septiembre
+  Auth-Results: spf=fail dkim=none dmarc=fail
+  Body:
+    Estimado colaborador, para procesar el pago de nómina del mes
+    de septiembre necesitamos que actualice sus datos bancarios
+    antes del viernes en el siguiente enlace:
+    http://192.168.1.50/nomina/actualizar
+    Si no actualiza sus datos, el pago podría retrasarse hasta
+    15 días hábiles. Según nuestra conversación con su jefe
+    directo, este trámite es prioritario.
+
+──────────────────────────────────────────────────────────────
+  TIPO: Clone Phishing (copia de correo legítimo)
+  Score esperado: 60-80  |  Severidad: HIGH
+──────────────────────────────────────────────────────────────
+  From:         noreply@bancolombia-extractos.com
+  Subject:      Reenviamos: Tu extracto de agosto ya está disponible
+  Auth-Results: spf=fail dkim=none dmarc=fail
+  Body:
+    Hola, reenviamos este correo porque el enlace anterior expiró.
+    Tu extracto del mes de agosto ya está listo para descargar.
+    Usa el nuevo enlace actualizado:
+    http://bancolombia-extractos.com/descargar?id=8821&token=abc123
+    El nuevo enlace vence en 24 horas.
+    Si no solicitaste este correo, ignóralo.
+
+──────────────────────────────────────────────────────────────
+  TIPO: Vishing (solicita llamar a número falso)
+  Score esperado: 60-80  |  Severidad: HIGH
+──────────────────────────────────────────────────────────────
+  From:         alertas@dian-colombia.click
+  Subject:      URGENTE: Proceso jurídico iniciado — Llame ahora
+  Auth-Results: spf=fail dkim=fail dmarc=fail
+  Body:
+    La DIAN ha iniciado un proceso de cobro jurídico en su contra
+    por inconsistencias en su declaración de renta del año 2025.
+    Para evitar embargo de cuentas y sanciones adicionales,
+    llame AHORA al +57 601 800 0000.
+    No ignore este aviso. No responda este correo.
+    Tiempo límite: 24 horas. Agentes disponibles 24/7.
+
+──────────────────────────────────────────────────────────────
+  TIPO: Smishing (redirige a WhatsApp)
+  Score esperado: 40-65  |  Severidad: MEDIUM/HIGH
+  Nota: el más difícil de detectar porque no tiene URLs maliciosas.
+        La señal está en el contenido (WhatsApp + datos personales).
+──────────────────────────────────────────────────────────────
+  From:         alertas@nequi-soporte.online
+  Subject:      Tu cuenta Nequi fue bloqueada por seguridad
+  Auth-Results: spf=fail dkim=none dmarc=fail
+  Body:
+    Tu cuenta Nequi fue bloqueada por actividad inusual detectada
+    desde una ubicación desconocida.
+    Para desbloquearla en menos de 2 minutos, envíanos un mensaje
+    de WhatsApp al +57 310 456 7890 con tu número de cédula y los
+    últimos 4 dígitos de tu clave Nequi.
+    Solo tomará un momento. No pierdas acceso a tu dinero.
+
+──────────────────────────────────────────────────────────────
+  TIPO: Genérico / Masivo
+  Score esperado: 70-90  |  Severidad: HIGH/CRITICAL
+──────────────────────────────────────────────────────────────
+  From:         premios@sorteo-nacional-colombia.tk
+  Subject:      FELICITACIONES — Eres el ganador de $50,000,000
+  Auth-Results: spf=fail dkim=none dmarc=fail
+  Body:
+    ¡Enhorabuena! Tu número de cédula fue seleccionado como ganador
+    del Gran Sorteo Nacional 2026. Premio: $50,000,000 COP.
+    Para reclamar tu premio debes actuar antes de 72 horas.
+    Haz clic aquí: http://premios-colombia.ga/reclamar
+    IMPORTANTE: Se requiere pago de $50,000 por gastos
+    administrativos para liberar el premio a tu cuenta.
+
+──────────────────────────────────────────────────────────────
+  TIPO: LEGÍTIMO
+  Score esperado: 0-25   |  No debe crear alerta
+──────────────────────────────────────────────────────────────
+  From:         notificaciones@bancolombia.com.co
+  Subject:      Tu extracto de cuenta de septiembre está listo
+  Auth-Results: spf=pass dkim=pass dmarc=pass
+  Body:
+    Hola, tu extracto de cuenta corriente del mes de septiembre
+    ya está disponible en la app Bancolombia o en sucursal virtual.
+    Recuerda que puedes configurar alertas de movimientos desde
+    la app para mayor seguridad.
+    Si tienes dudas comunícate con nosotros por la línea
+    01 8000 912 345. Gracias por confiar en Bancolombia.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. CÓMO PROBAR CADA APARTADO DEL SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Orden recomendado para una demostración completa:
+  Registro → Analizar correo → Dashboard → Alertas → Incidentes → Threat Intel
+
+
+──────────────────────────────────────────────────────────────
+  3.0 REGISTRO Y APROBACIÓN DE CUENTA
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  El sistema tiene registro abierto pero con aprobación manual.
+  Un usuario nuevo no puede entrar hasta que el admin lo apruebe.
+
+FLUJO COMPLETO:
+  1. Ir a http://localhost/register
+  2. Ingresar correo, contraseña (mínimo 10 caracteres), organización
+     y aceptar los Términos y Condiciones
+  3. Hacer clic en "Crear cuenta"
+  4. Revisar el correo — llega un enlace de verificación (si SendGrid
+     está configurado) o ver el enlace en los logs del backend:
+       docker compose logs backend -f | grep "verify-email"
+  5. Hacer clic en el enlace de verificación
+  6. Iniciar sesión con admin@sentryx.local / admin123
+  7. Ir al menú "Usuarios pendientes" (visible solo para admins)
+  8. Hacer clic en "Aprobar" — el nuevo usuario recibe correo de confirmación
+  9. El nuevo usuario ya puede iniciar sesión
+
+AISLAMIENTO POR USUARIO:
+  Cada usuario solo ve sus propias alertas. El admin ve todas.
+  Para probarlo: analizar correos con el usuario "analista" y luego
+  entrar con "admin" — el admin los ve todos, el analista solo los suyos.
+
+
+──────────────────────────────────────────────────────────────
+  3.1 ANALIZAR CORREO  (http://localhost/analyze)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Análisis manual de correos con el motor ML. El resultado aparece
+  en tiempo real sin salir de la página.
+
+CÓMO PROBARLO:
+  1. Iniciar sesión con analista@sentryx.local / analista123
+  2. Ir a "Analizar correo" en el menú lateral
+  3. Pegar el correo BEC de la sección 2
+  4. Hacer clic en "Analizar correo"
+
+QUÉ VER EN EL RESULTADO:
+  - Número 0-100 con color por peligrosidad:
+      Verde    = legítimo (0-39)
+      Amarillo = sospechoso (40-69)
+      Naranja  = phishing (70-84)
+      Rojo     = crítico (85-100)
+  - Tipo de phishing detectado (BEC, Whaling, Spear, etc.)
+  - Técnica MITRE ATT&CK (T1566.001 a T1566.004)
+  - Tres barras de desglose por capa ML:
+      Encabezados (35%): SPF, DKIM, DMARC, typosquatting
+      Contenido   (40%): texto, urgencia, patrones de phishing
+      URLs        (25%): enlaces embebidos en el correo
+  - Si score >= 40: botón "Alerta creada" que lleva al detalle
+
+PRUEBA COMPARATIVA:
+  Analizar primero el correo BEC (score ~88) y luego el legítimo
+  de Bancolombia (score ~8). El contraste demuestra la capacidad
+  de discriminación del sistema.
+
+
+──────────────────────────────────────────────────────────────
+  3.2 DASHBOARD  (http://localhost)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Vista general del estado de seguridad. Se actualiza solo cada 30s.
+  Cada usuario ve solo sus propias estadísticas (salvo el admin).
+
+CÓMO PROBARLO:
+  1. Analizar al menos 5 correos de la sección 2
+  2. Ir al Dashboard desde el menú lateral
+  3. Observar los 4 KPIs:
+       - Total alertas: total generadas por el usuario
+       - Críticas: alertas con score >= 85
+       - Esta semana: alertas de los últimos 7 días
+       - Campañas activas: grupos detectados automáticamente
+  4. Ver la gráfica de área (tendencia 7 días)
+  5. Ver la dona de distribución por tipo de phishing
+  6. Ver las 4 barras de severidad
+
+VERIFICAR POLLING AUTOMÁTICO:
+  Dejar el dashboard abierto, abrir "Analizar correo" en otra pestaña,
+  analizar un correo de phishing, volver al dashboard y esperar 30
+  segundos. El contador sube solo sin recargar.
+
+VERIFICAR DETECCIÓN DE CAMPAÑA:
+  Analizar los correos de BEC y Clone (mismo dominio similar).
+  Si el sistema detecta 3+ alertas del mismo dominio en 1 hora,
+  el contador "Campañas activas" sube a 1 automáticamente.
+
+
+──────────────────────────────────────────────────────────────
+  3.3 ALERTAS  (http://localhost/alerts)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Tabla con todas las alertas generadas por el usuario actual.
+  El admin ve las de todos los usuarios.
+
+CÓMO PROBARLO — LISTADO:
+  1. Ir a "Alertas" en el menú lateral
+  2. Verificar que aparecen las alertas generadas
+  3. Hacer clic en "Filtros" y probar:
+       - Severidad: CRITICAL → solo alertas críticas
+       - Tipo: bec → solo correos BEC
+       - Estado: new → solo alertas nuevas
+       - Dominio: escribir "tk" → dominios con .tk
+
+CÓMO PROBARLO — DETALLE:
+  1. Hacer clic en cualquier alerta
+  2. Verificar:
+
+  SCORE PROMINENTE:
+    Número grande (ej: 88/100) con color según peligrosidad.
+
+  DESGLOSE DE CAPAS ML:
+    Tres barras que muestran el aporte de cada modelo:
+    - Encabezados 35%: alto si SPF/DKIM/DMARC fallaron
+    - Contenido  40%: alto si el texto tiene patrones de phishing
+    - URLs       25%: alto si hay URLs maliciosas embebidas
+
+  FEATURES DE ENCABEZADOS:
+    Tabla con los valores individuales:
+    - SPF pass: 0 (falló) / 1 (pasó)
+    - DKIM pass: 0 / 1
+    - TLD sospechoso: 1 si usa .tk .ml .xyz
+    - Dist. marca (typo): número bajo = suplantación
+    - Urgencia en asunto: 1 si tiene palabras de urgencia
+
+  BLOQUE DE PRIVACIDAD (Ley 1581/2012):
+    El email del remitente NO se guardó — solo su hash SHA-256:
+    "a3f8c2d1..." (64 caracteres, irreversible sin el salt).
+
+  PANEL DE ACCIONES (solo analistas y admins):
+    Selector para cambiar el estado de la alerta:
+    - Nueva → En revisión (cuando se está investigando)
+    - En revisión → Resuelta (cuando se confirmó y mitigó)
+    - Nueva → Falso positivo (cuando era un correo legítimo)
+
+  REENTRENAMIENTO AUTOMÁTICO:
+    Al marcar como "Falso positivo", el sistema automáticamente:
+    1. Guarda la corrección como muestra de entrenamiento
+    2. Dispara el reentrenamiento del modelo ML en segundo plano
+    3. El nuevo modelo se carga sin reiniciar el sistema
+
+
+──────────────────────────────────────────────────────────────
+  3.4 INCIDENTES  (http://localhost/incidents)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Gestión de incidentes de seguridad. Agrupa alertas relacionadas
+  y tiene un ciclo de vida con registro completo en timeline.
+
+CÓMO PROBARLO:
+  1. Analizar todos los correos de la sección 2
+  2. Ir a "Incidentes" en el menú lateral
+  3. Hacer clic en "Nuevo incidente"
+  4. Completar el formulario:
+       Título:      Campaña de phishing activa — múltiples vectores
+       Severidad:   CRITICAL
+       Descripción: Se detectaron 7 correos de phishing en los últimos
+                    30 minutos usando BEC, Whaling, Spear, Clone,
+                    Vishing, Smishing y Genérico. Posible campaña
+                    coordinada contra la organización.
+  5. Hacer clic en "Crear"
+
+GESTIONAR EL CICLO DE VIDA:
+  Estados del incidente:
+    Nuevo → En investigación → Contenido → Cerrado
+
+  Probar el flujo:
+  1. Entrar al incidente creado
+  2. Cambiar a "En investigación"
+     → En el timeline aparece el cambio con hora y usuario
+  3. Cambiar a "Contenido" (ataque bloqueado)
+  4. Cambiar a "Cerrado"
+     → El sistema registra la fecha y hora de cierre automáticamente
+
+QUÉ VERIFICAR EN EL TIMELINE:
+  Cada cambio queda registrado con tipo de evento, descripción,
+  usuario y timestamp exacto. Cumple trazabilidad de Ley 1581/2012.
+
+
+──────────────────────────────────────────────────────────────
+  3.5 THREAT INTELLIGENCE  (http://localhost/threat-intel)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Gestión de IOCs (Indicadores de Compromiso). Se sincroniza
+  con feeds públicos (PhishTank, OpenPhish) y permite añadir
+  IOCs manuales desde el dashboard.
+
+CÓMO PROBARLO — ESTADÍSTICAS:
+  1. Ir a "Threat Intel" en el menú lateral
+  2. Ver conteo de IOCs activos por fuente
+  Nota: los feeds automáticos sincronizan cada 1-6 horas.
+        Si el conteo es 0, aún no ha sincronizado.
+
+CÓMO PROBARLO — AÑADIR IOCs MANUALES:
+  Hacer clic en "Añadir IOC manual" y registrar:
+
+  IOC 1:
+    Tipo:        domain
+    Valor:       bancolombia-seguro.tk
+    Nivel:       CRITICAL
+    Descripción: Dominio suplanta a Bancolombia — correo BEC
+
+  IOC 2:
+    Tipo:        url
+    Valor:       http://192.168.1.100/bancolombia/login
+    Nivel:       CRITICAL
+    Descripción: URL de robo de credenciales bancarias
+
+  IOC 3:
+    Tipo:        domain
+    Valor:       dian-colombia.click
+    Nivel:       CRITICAL
+    Descripción: Suplantación de la DIAN — correo de vishing
+
+  IOC 4:
+    Tipo:        domain
+    Valor:       nequi-soporte.online
+    Nivel:       HIGH
+    Descripción: Suplantación de Nequi — correo de smishing
+
+  IOC 5:
+    Tipo:        domain
+    Valor:       portal-aprobaciones.tk
+    Nivel:       CRITICAL
+    Descripción: Dominio de fraude a ejecutivos (whaling)
+
+CÓMO PROBARLO — CONSULTA DE REPUTACIÓN:
+  En el campo de búsqueda "Consulta rápida de reputación":
+
+  Valores que aparecen como LIMPIOS:
+    bancolombia.com.co
+    amazon.com
+    google.com
+
+  Valores que aparecen como MALICIOSOS (después de añadirlos):
+    bancolombia-seguro.tk   → CRITICAL
+    dian-colombia.click     → CRITICAL
+    nequi-soporte.online    → HIGH
+
+FORZAR SINCRONIZACIÓN CON OPENPHISH (opcional):
+  docker compose exec backend python manage.py shell -c "
+  from apps.alerts.tasks import sync_openphish_task
+  result = sync_openphish_task.apply()
+  print('IOCs sincronizados:', result.result)
+  "
+
+
+──────────────────────────────────────────────────────────────
+  3.6 VERIFICACIÓN EN DOS PASOS (2FA)  (http://localhost/security)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Además de la contraseña, Sentryx pide un código de 6 dígitos que
+  genera Google Authenticator o Microsoft Authenticator (TOTP, cambia
+  cada 30 s). El secreto se guarda cifrado y los 8 códigos de
+  recuperación solo como hash.
+
+ANTES DE PROBAR:
+  El .env debe tener MFA_ENCRYPTION_KEY. Una instalación nueva con
+  setup.sh ya la trae. En una instalación anterior, copiar desde
+  .env.example estas dos líneas al .env y reiniciar el backend:
+       MFA_ENCRYPTION_KEY=sentryx-dev-mfa-key-2026-cambiar-en-produccion
+       MFA_REQUIRED_FOR_ADMINS=False
+       docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
+       docker compose restart nginx
+  Sin la clave, la página muestra "no está configurada" (error 503).
+
+CÓMO PROBARLO — ACTIVAR:
+  1. Iniciar sesión con analista@sentryx.local / analista123
+  2. Menú lateral → Cuenta → "Seguridad de la cuenta"
+  3. Pulsar "Activar la verificación en dos pasos"
+  4. En el teléfono: Google Authenticator o Microsoft Authenticator →
+     "Agregar cuenta" → escanear el QR (o escribir la clave a mano)
+  5. Escribir el código de 6 dígitos y pulsar "Activar"
+  6. Aparecen 8 códigos de recuperación. Pulsar "Descargar .txt",
+     marcar "Guardé mis códigos..." y pulsar "Terminar"
+     → El estado cambia a "Activada" y muestra "8 de 8" códigos
+
+CÓMO PROBARLO — INICIAR SESIÓN:
+  1. Cerrar sesión y entrar de nuevo con correo y contraseña
+     → Ahora pide "Código de verificación" (no entra todavía)
+  2. Escribir un código incorrecto (000000)
+     → "El código no es válido. Te quedan 4 intentos."
+  3. Escribir el código actual de la app → entra al dashboard
+  4. Repetir el login y pulsar "Usar código de recuperación";
+     escribir uno de los códigos descargados → entra
+     → En Seguridad de la cuenta ahora dice "7 de 8"
+  5. Volver a usar ESE MISMO código de recuperación → lo rechaza
+  6. El paso del código caduca a los 5 minutos: si se espera más,
+     pide escribir la contraseña de nuevo
+  7. Tras 5 códigos incorrectos se invalida el intento y django-axes
+     bloquea la cuenta 1 hora (igual que con 5 contraseñas malas)
+     Desbloquear:  docker compose exec backend python manage.py axes_reset
+
+CÓMO PROBARLO — DESACTIVAR:
+  Seguridad de la cuenta → "Desactivar la verificación en dos pasos"
+  → pide contraseña actual y un código (de la app o de recuperación)
+
+RESTABLECER EL 2FA DE OTRO USUARIO (admin, si perdió el teléfono):
+  Por API (con el token del admin) o desde Swagger (sección 3.8):
+       POST /api/v1/auth/users/<id_del_usuario>/mfa/reset/
+  O desde el shell:
+       docker compose exec backend python manage.py shell -c "
+       from apps.users.models import ShieldUser; from apps.users import mfa
+       mfa.disable(ShieldUser.objects.get(email='CORREO_AQUI')); print('2FA restablecido')
+       "
+
+2FA OBLIGATORIO PARA ADMINISTRADORES (opcional):
+  Poner MFA_REQUIRED_FOR_ADMINS=True en el .env y reiniciar el backend.
+  Un admin sin 2FA, al entrar, va directo a "Seguridad de la cuenta" y
+  no puede usar nada más hasta activarlo. Volver a False para la demo.
+
+EXTENSIÓN DE NAVEGADOR:
+  Si la cuenta tiene 2FA, la configuración de la extensión pide el
+  código después de la contraseña (ver extension/README.md).
+
+QUÉ VERIFICAR EN AUDITORÍA (/admin/ → Audit logs, recurso "mfa"):
+  mfa_enabled, mfa_disabled, mfa_recovery_code_used,
+  mfa_verify_failed (cada código incorrecto), mfa_reset_by_admin.
+
+
+──────────────────────────────────────────────────────────────
+  3.7 TAREAS PROGRAMADAS Y REENTRENAMIENTO MENSUAL
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Celery Beat ejecuta solo, en hora de Bogotá:
+    purge_old_data    todos los días 02:00 — borra alertas resueltas o
+                      falsos positivos de más de 90 días y auditoría de
+                      más de 365 días (Ley 1581/2012)
+    sync_phishtank    cada 1 hora  — URLs de PhishTank (requiere API key)
+    sync_openphish    cada 6 horas — feed público de OpenPhish
+    monthly_retrain   día 1 de cada mes 03:00 — reentrena si hay al menos
+                      5 correcciones pendientes y ningún reentrenamiento
+                      en curso; si no, lo omite y lo deja en el log
+  Se registran solas al aplicar las migraciones.
+
+VER QUE ESTÁN REGISTRADAS:
+  docker compose exec backend python manage.py shell -c "
+  from django_celery_beat.models import PeriodicTask
+  for t in PeriodicTask.objects.order_by('name'):
+      print(t.name, '|', t.task, '|', t.schedule, '| activa:', t.enabled)
+  "
+  También en http://localhost/admin/ → Periodic tasks
+
+FORZAR EL REENTRENAMIENTO MENSUAL DESDE EL SHELL:
+  1. Marcar al menos 5 alertas como "Falso positivo" (o ver cuántas
+     correcciones hay en la página "Reentrenamiento")
+  2. Ejecutar la tarea por el worker de Celery, como lo haría Beat:
+       docker compose exec backend python manage.py shell -c "
+       from apps.ml_feedback.tasks import monthly_retrain_task
+       print(monthly_retrain_task.delay().get(timeout=60))
+       "
+     Resultados posibles:
+       {'status': 'queued', 'job_id': ...}              → se encoló
+       {'status': 'skipped', 'reason': 'not_enough_samples', ...}
+       {'status': 'skipped', 'reason': 'job_in_progress', ...}
+  3. Ir a "Reentrenamiento": el job aparece con la etiqueta "Programado"
+     (los otros orígenes son "Por falso positivo" y "Manual")
+  4. En auditoría queda un CONFIG_CHANGE de "ml_retrain" con usuario
+     "system" y trigger "scheduled"
+
+FORZAR LA PURGA:
+  docker compose exec backend python manage.py shell -c "
+  from apps.alerts.tasks import purge_old_data_task
+  print(purge_old_data_task.delay().get(timeout=60))
+  "
+
+VER LAS EJECUCIONES:  Flower en http://localhost:5555
+                      docker compose logs celery_beat --tail=30
+
+
+──────────────────────────────────────────────────────────────
+  3.8 DOCUMENTACIÓN DE LA API (OpenAPI / Swagger)
+──────────────────────────────────────────────────────────────
+QUÉ ES:
+  Documentación interactiva de la API REST (requisito RF-09).
+    Swagger UI:      http://localhost/api/v1/docs/
+    Esquema OpenAPI: http://localhost/api/v1/schema/   (YAML)
+  Del motor ML sigue estando: http://localhost/ml/docs
+
+ACCESO:
+  En desarrollo (DJANGO_DEBUG=True) es pública.
+  En producción (DJANGO_DEBUG=False) exige estar autenticado:
+    - en el navegador, entrar antes a /admin/ con una cuenta de staff
+      (el admin creado por setup.sh), o
+    - desde un cliente de API, con "Authorization: Bearer <token>".
+
+CÓMO PROBARLO:
+  1. Abrir http://localhost/api/v1/docs/
+  2. Abrir "auth" → POST /api/v1/auth/token/ → "Try it out" → usar el
+     ejemplo "Credenciales" → Execute → copiar el valor de "access"
+  3. Pulsar "Authorize" (arriba a la derecha), pegar el token y aceptar
+  4. Probar GET /api/v1/alerts/ y POST /api/v1/alerts/analyze/ con el
+     ejemplo "Correo BEC"
+  5. Revisar las secciones: auth, mfa, alerts, reports, incidents,
+     threat-intel, ml y audit
+
+DESCARGAR EL ESQUEMA (para anexarlo al documento):
+  docker compose exec backend python manage.py spectacular --file /tmp/sentryx-openapi.yml
+  docker cp sentryx_backend:/tmp/sentryx-openapi.yml .
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. FLUJO COMPLETO DE DEMOSTRACIÓN (para sustentación)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+10 pasos que cubren todas las funcionalidades:
+
+  PASO 1 — Mostrar el registro
+    Ir a http://localhost/register y mostrar el formulario.
+    Explicar el flujo: registro → verificación de correo →
+    aprobación manual por admin → acceso al sistema.
+    Mostrar los Términos y Condiciones y la Política de Privacidad.
+
+  PASO 2 — Iniciar sesión como analista
+    Entrar con analista@sentryx.local / analista123.
+    Mostrar el dashboard vacío antes de analizar nada.
+
+  PASO 3 — Analizar correo legítimo
+    Ir a "Analizar correo", pegar el correo legítimo de Bancolombia.
+    Mostrar score bajo (~8/100), color verde, sin alerta creada.
+    Explicar que el sistema distingue el correo legítimo real.
+
+  PASO 4 — Analizar correo BEC
+    Pegar el correo BEC (pagos@bancolombia-seguro.tk).
+    Mostrar score alto (~88/100), rojo, tipo BEC, MITRE T1566.002.
+    Mostrar el desglose: Encabezados 95, Contenido 82, URLs 90.
+    Hacer clic en "Alerta creada" para ir al detalle.
+
+  PASO 5 — Explorar el detalle de la alerta
+    Mostrar el score prominente y las tres capas.
+    Mostrar los features de encabezados (SPF fail, DKIM none, etc.)
+    Mostrar el bloque de privacidad con el hash SHA-256 del remitente.
+    Explicar que el email nunca se guardó en texto plano.
+
+  PASO 6 — Analizar 3 correos más y detectar campaña
+    Analizar Whaling, Spear y Clone.
+    Volver al Dashboard — mostrar que las estadísticas subieron.
+    Si algún dominio coincide, mostrar que "Campañas activas" sube.
+
+  PASO 7 — Filtrar alertas y gestionar estados
+    Ir a "Alertas", abrir filtros.
+    Filtrar por severidad CRITICAL.
+    Entrar a una alerta y cambiar el estado a "Falso positivo".
+    Explicar que esto dispara el reentrenamiento automático del modelo.
+
+  PASO 8 — Gestionar un incidente
+    Ir a "Incidentes", crear el incidente "Campaña de phishing activa".
+    Cambiar estado a "En investigación" y mostrar el timeline.
+    Cambiar a "Cerrado" y mostrar la fecha de cierre registrada.
+
+  PASO 9 — Threat Intelligence
+    Ir a "Threat Intel".
+    Añadir IOC manual: bancolombia-seguro.tk / CRITICAL.
+    Consultar en el buscador → aparece como ENCONTRADO.
+    Consultar bancolombia.com.co → aparece como LIMPIO.
+
+  PASO 10 — Panel de admin (usuarios pendientes y auditoría)
+    Cerrar sesión, entrar con admin@sentryx.local / admin123.
+    Ir a "Usuarios pendientes" en el menú → mostrar panel de aprobación.
+    Ir a http://localhost/admin/ → Audit logs → mostrar que cada
+    acción quedó registrada con usuario, hora e IP hasheada.
+    Explicar la inmutabilidad del log (cumplimiento Ley 1581/2012).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. ARQUITECTURA DEL SISTEMA (referencia rápida)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPONENTES (7 contenedores Docker):
+  nginx          → Reverse proxy, punto único de entrada (puerto 80)
+  backend        → API REST Django con 16 endpoints (puerto 8000)
+  ml_engine      → Motor ML FastAPI con ensemble de 3 modelos (puerto 8001)
+  frontend       → Dashboard React + Vite + Tailwind (puerto 5173)
+  db             → PostgreSQL 16 — base de datos principal (puerto 5432)
+  redis          → Caché y broker de tareas Celery (puerto 6379)
+  celery_worker  → Reentrenamiento, sincronización TI, purga de datos
+  celery_beat    → Scheduler: purga diaria, feeds TI y reentrenamiento mensual
+
+MOTOR ML — ENSEMBLE DE 3 MODELOS:
+  HeadersPipeline  (35%) → Random Forest — SPF, DKIM, DMARC, typosquatting
+  ContentPipeline  (40%) → TF-IDF + SVM — texto, urgencia, tipo de phishing
+  URLsPipeline     (25%) → Random Forest — URLs embebidas en el correo
+
+  Score final = headers×0.35 + content×0.40 + urls×0.25
+  Clasificación: <40 legítimo | 40-69 sospechoso | 70-84 phishing | ≥85 crítico
+
+TIPOS DE PHISHING DETECTADOS:
+  spear    → T1566.001 — dirigido a persona específica
+  whaling  → T1566.001 — dirigido a ejecutivos
+  bec      → T1566.002 — suplantación de correo corporativo
+  clone    → T1566.001 — copia de correo legítimo con links cambiados
+  vishing  → T1566.004 — solicita llamar a número falso (Spearphishing Voice)
+  smishing → T1566.003 — redirige a WhatsApp o SMS (Spearphishing via Service)
+  generic  → T1566.001 — phishing masivo sin personalización
+
+AISLAMIENTO POR USUARIO:
+  Cada usuario solo ve sus propias alertas y campañas, y los
+  incidentes que creó o tiene asignados.
+  El admin ve todos los registros de todos los usuarios.
+  El campo "owner" en cada alerta vincula la alerta al usuario
+  que la generó. Los filtros de la API aplican automáticamente.
+
+REENTRENAMIENTO ACTIVO:
+  Al marcar una alerta como "Falso positivo":
+  1. Se guarda el feedback en la tabla training_feedback
+  2. Se dispara retrain_models_task en Celery (segundo plano)
+  3. El ML Engine recarga los modelos sin reiniciar
+  Si ya hay un job de reentrenamiento corriendo, el feedback
+  se acumula y se usa en el siguiente ciclo.
+  Además, el día 1 de cada mes a las 03:00 corre un reentrenamiento
+  programado si hay al menos 5 correcciones pendientes (sección 3.7).
+
+PRIVACIDAD (Ley 1581/2012 — Colombia):
+  Remitente, destinatario, asunto y cuerpo se almacenan como
+  SHA-256(valor + salt_único_del_despliegue).
+  El destinatario solo se guarda si se envía (campo "Destinatario"
+  en Analizar correo; la extensión no lo lee).
+  Sin el salt es imposible recuperar el dato original.
+  Solo el dominio del remitente se guarda en texto plano.
+
+ESTÁNDARES APLICADOS:
+  ISO/IEC 12207:2017  → Ciclo de vida del software
+  NIST CSF v2.0       → Identificar, Detectar, Responder, Recuperar
+  MITRE ATT&CK v14    → T1566.001 a T1566.004
+  WCAG 2.2 nivel AA   → Accesibilidad web
+  Ley 1581/2012       → Protección de datos personales (Colombia)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. USUARIOS Y ROLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ROL ADMIN (admin@sentryx.local / admin123)
+    ✓ Ve todas las alertas de todos los usuarios
+    ✓ Aprueba y rechaza cuentas nuevas
+    ✓ Dispara el reentrenamiento del modelo ML
+    ✓ Ve el log de auditoría completo en /admin/
+    ✓ Accede al panel de administración de Django
+    ✓ Restablece el 2FA de otros usuarios
+
+  ROL ANALYST (analista@sentryx.local / analista123)
+    ✓ Ve solo sus propias alertas y campañas
+    ✓ Analiza correos y genera alertas
+    ✓ Cambia el estado de sus alertas
+    ✓ Crea y gestiona incidentes (ve los que creó o tiene asignados)
+    ✓ Activa su propia verificación en dos pasos
+    ✓ Añade IOCs manuales a Threat Intel
+    ✗ No puede ver alertas de otros usuarios
+    ✗ No puede aprobar cuentas ni reentrenar el modelo
+
+  ROL VIEWER (crear desde /admin/ si se necesita)
+    ✓ Ve sus propias alertas (solo lectura)
+    ✗ No puede analizar correos ni modificar nada
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  7. COMANDOS ÚTILES PARA PRUEBAS Y DEMOSTRACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Borrar todas las alertas para empezar limpio:
+    docker compose exec backend python manage.py shell -c "
+    from apps.alerts.models import Alert, PhishingCampaign
+    Alert.objects.all().delete()
+    PhishingCampaign.objects.all().delete()
+    print('Datos borrados')
+    "
+
+  Ver cuántas alertas hay por tipo:
+    docker compose exec backend python manage.py shell -c "
+    from apps.alerts.models import Alert
+    from django.db.models import Count
+    for t in Alert.objects.values('phishing_type').annotate(c=Count('id')):
+        print(t['phishing_type'], ':', t['c'])
+    "
+
+  Aprobar una cuenta manualmente sin correo:
+    docker compose exec backend python manage.py shell -c "
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    User.objects.filter(email='CORREO_AQUI').update(
+        is_email_verified=True, is_approved=True
+    )
+    print('Cuenta aprobada')
+    "
+
+  Ver todos los usuarios registrados:
+    docker compose exec backend python manage.py shell -c "
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    for u in User.objects.all():
+        print(u.email, u.role, 'aprobado:', u.is_approved, 'verificado:', u.is_email_verified)
+    "
+
+  Verificar que el ML Engine tiene los modelos cargados:
+    docker compose exec ml_engine python -c "
+    from pathlib import Path
+    for f in Path('/app/models/trained').glob('*.joblib'):
+        print(f.name, f.stat().st_size // 1024, 'KB')
+    "
+
+  Desbloquear cuentas bloqueadas por django-axes:
+    docker compose exec backend python manage.py axes_reset
+
+  Correr las pruebas automáticas:
+    docker compose exec backend pytest -q
+    docker compose exec ml_engine pytest -q
+    docker compose exec frontend npx vitest run
+
+  Ver estado de todos los contenedores:
+    docker compose ps
+
+  Ver logs de errores del backend:
+    docker compose logs backend --tail=30 | grep -i error
+
+════════════════════════════════════════════════════════════════
+  Fin del manual — Sentryx v2 — Proyecto de Grado 2026
+════════════════════════════════════════════════════════════════

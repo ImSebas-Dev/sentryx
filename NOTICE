@@ -1,0 +1,11 @@
+Sentryx v2
+Copyright 2026 Dany Vanesa Lugo Escobar y Juan Sebastián López Solórzano
+
+Plataforma XDR de detección de phishing por correo electrónico.
+Proyecto de grado de Ingeniería de Sistemas, Universidad Manuela Beltrán.
+
+Este producto se distribuye bajo la Licencia Apache, versión 2.0
+(ver el archivo LICENSE).
+
+Incluye software de terceros (Django, Django REST Framework, FastAPI,
+scikit-learn, React, entre otros) distribuido bajo sus propias licencias.
