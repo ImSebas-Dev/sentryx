@@ -166,7 +166,7 @@ async function extractEmailFromTab() {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files:  ['content.js'],
+        files:  ['content.js', 'overlay.js'],
       });
       result = await requestExtraction(tab.id);
     } catch (err) {
@@ -254,9 +254,16 @@ async function analyzeCurrentEmail() {
 
   if (response?.success) {
     showResult(response.data);
+    showRiskOnPage(response.data);
   } else {
     showError(response?.error || 'Error desconocido al analizar el correo.');
   }
+}
+
+// Pide a la pestaña que muestre el banner o la capa de bloqueo sobre el correo
+async function showRiskOnPage(result) {
+  const tab = await getActiveTab();
+  if (tab) chrome.tabs.sendMessage(tab.id, { type: 'SHOW_RISK', result }, () => void chrome.runtime.lastError);
 }
 
 function showError(message) {

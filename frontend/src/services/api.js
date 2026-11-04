@@ -86,7 +86,18 @@ export const alertsAPI = {
   list:    (params)     => api.get('/alerts/',         { params }),
   detail:  (id)         => api.get(`/alerts/${id}/`),
   update:  (id, data)   => api.patch(`/alerts/${id}/`, data),
-  analyze: (payload)    => api.post('/alerts/analyze/', payload),
+  // Con adjuntos viaja en multipart. Fija el Content-Type: con el JSON por defecto
+  // de esta instancia, axios convertiría el FormData a JSON y perdería los archivos.
+  analyze: (payload, files = []) => {
+    if (!files.length) return api.post('/alerts/analyze/', payload)
+    const form = new FormData()
+    Object.entries(payload.headers || {}).forEach(([k, v]) => form.append(`headers.${k}`, v ?? ''))
+    form.append('body_text', payload.body_text || '')
+    files.forEach(f => form.append('attachments', f))
+    return api.post('/alerts/analyze/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000,
+    })
+  },
   stats:   ()           => api.get('/alerts/stats/'),
   campaigns: (params)   => api.get('/alerts/campaigns/', { params }),
 }
@@ -114,6 +125,15 @@ export const reportsAPI = {
     responseType: 'blob',
     timeout: 60000,
   }),
+}
+
+export const paymentShieldAPI = {
+  suppliers:      (params)   => api.get('/payment-shield/suppliers/', { params }),
+  createSupplier: (data)     => api.post('/payment-shield/suppliers/', data),
+  updateSupplier: (id, data) => api.patch(`/payment-shield/suppliers/${id}/`, data),
+  deleteSupplier: (id)       => api.delete(`/payment-shield/suppliers/${id}/`),
+  checks:         (params)   => api.get('/payment-shield/checks/', { params }),
+  verifyCheck:    (id, data) => api.post(`/payment-shield/checks/${id}/verify/`, data),
 }
 
 export const auditAPI = {

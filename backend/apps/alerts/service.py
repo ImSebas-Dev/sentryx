@@ -45,13 +45,15 @@ def create_alert_from_ml_result(
     email_payload: dict,
     triggered_by:  str  = "api",
     owner=None,                      # ← usuario que disparó el análisis
+    force=False,                     # ← una capa de negocio exige la alerta (score bajo)
+    attachment_count=0,
 ) -> "Alert | None":
     """
     Crea una alerta vinculada al usuario que la generó (owner).
     Los analistas ven solo sus propias alertas.
     Los admins ven todas.
     """
-    if not _should_create_alert(ml_result.get("classification", "legitimate")):
+    if not force and not _should_create_alert(ml_result.get("classification", "legitimate")):
         return None
 
     headers       = email_payload.get("headers", {})
@@ -95,7 +97,8 @@ def create_alert_from_ml_result(
         subject_hash   = subject_hash,
         sender_domain  = sender_domain,
         email_body_hash= body_hash,
-        has_attachments= False,
+        has_attachments= attachment_count > 0,
+        attachment_count=attachment_count,
         url_count      = ml_result.get("url_count", 0),
         ml_features    = ml_result.get("features_by_layer", {}),
         suspicious_urls= suspicious_urls,

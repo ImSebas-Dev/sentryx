@@ -38,6 +38,7 @@ LOCAL_APPS = [
     "apps.threat_intel",
     "apps.audit",
     "apps.ml_feedback",
+    "apps.payment_shield",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -198,6 +199,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "threat-intel", "description": "Indicadores de compromiso (IOC)"},
         {"name": "ml",           "description": "Reentrenamiento del modelo"},
         {"name": "audit",        "description": "Log de auditoría (solo admin)"},
+        {"name": "Escudo de pagos", "description": "Proveedores de confianza y validación de pagos y facturas DIAN"},
     ],
 }
 
@@ -268,6 +270,13 @@ OPENPHISH_SYNC_INTERVAL_HOURS  = config("OPENPHISH_SYNC_INTERVAL_HOURS",  defaul
 
 VIRUSTOTAL_API_KEY   = config("VIRUSTOTAL_API_KEY",        default="")
 VIRUSTOTAL_RATE_LIMIT= config("VIRUSTOTAL_RATE_LIMIT_PER_MIN", default=4, cast=int)
+
+# ── Escudo de pagos ───────────────────────────────────────
+# Sin secreto el escudo sigue funcionando, pero no registra ni compara cuentas.
+# Si cambias el secreto, vuelve a registrar las cuentas de los proveedores.
+PAYMENT_SHIELD_SECRET            = config("PAYMENT_SHIELD_SECRET", default="")
+PAYMENT_SHIELD_MAX_ATTACHMENT_MB = config("PAYMENT_SHIELD_MAX_ATTACHMENT_MB", default=5, cast=int)
+PAYMENT_SHIELD_EXTRA_BANKS       = config("PAYMENT_SHIELD_EXTRA_BANKS", default="", cast=Csv())
 
 # ── Estáticos ─────────────────────────────────────────────
 STATIC_URL  = "/static/"

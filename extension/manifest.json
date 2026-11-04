@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sentryx — Detector de Phishing",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Analiza correos en Gmail y Outlook para detectar phishing usando Sentryx.",
   "icons": {
     "16": "icons/icon16.png",
@@ -32,7 +32,8 @@
         "https://outlook.office365.com/*"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "overlay.js"
       ],
       "run_at": "document_idle"
     }

@@ -10,9 +10,10 @@ import { useFetch, useSubmit } from '../hooks/useFetch'
 import { useAuth } from '../store/AuthContext'
 import {
   SeverityBadge, TypeBadge, StatusBadge, MitreBadge,
-  ScoreBar, ScoreGauge, LoadingScreen, ErrorBanner, Section, Spinner,
+  ScoreBar, ScoreGauge, LoadingScreen, ErrorBanner, Section, Spinner, MessageBar,
   tone, scoreTone,
 } from '../components/UI'
+import PaymentShieldPanel from '../components/PaymentShieldPanel'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -97,6 +98,7 @@ export default function AlertDetailPage() {
     setNewStatus('')
   }
 
+  const signals        = alert.risk_signals || {}
   const headerFeatures = alert.ml_features?.headers || {}
   const scores         = alert.scores_by_layer || {}
   const riskTone       = tone(scoreTone(alert.risk_score))
@@ -125,6 +127,14 @@ export default function AlertDetailPage() {
 
         {/* Columna principal */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-5">
+
+          {signals.severity_adjustments?.map((adj, i) => (
+            <MessageBar key={i} intent="warning" title={`Severidad elevada de ${adj.from} a ${adj.to}`}>
+              {adj.reason} El score del modelo no cambió.
+            </MessageBar>
+          ))}
+
+          {signals.payment_shield && <PaymentShieldPanel shield={signals.payment_shield} />}
 
           <Section title="Score del ensemble"
                    description="Combinación ponderada de los tres modelos de detección">

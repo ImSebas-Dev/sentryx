@@ -47,7 +47,9 @@ class UserMeSerializer(serializers.ModelSerializer):
         ]
         # No quitar role ni email de esta lista: el propio usuario podría
         # volverse admin con PATCH /auth/me/ {"role": "admin"}.
-        read_only_fields = ["id", "username", "email", "role", "date_joined",
+        # Tampoco quites organization: separa los datos entre empresas y el usuario
+        # podría pasarse a otra con PATCH. La cambia un admin desde /admin/.
+        read_only_fields = ["id", "username", "email", "role", "organization", "date_joined",
                             "is_email_verified", "is_approved",
                             "mfa_enabled", "mfa_enabled_at"]
 

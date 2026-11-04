@@ -162,6 +162,7 @@ def purge_old_data_task():
     now             = timezone.now()
     deleted_alerts  = 0
     deleted_logs    = 0
+    deleted_checks  = 0
 
     # Alertas resueltas/cerradas más antiguas que DATA_RETENTION_EVENT_LOGS_DAYS
     cutoff_alerts   = now - timedelta(days=settings.DATA_RETENTION_EVENT_LOGS_DAYS)
@@ -170,6 +171,13 @@ def purge_old_data_task():
         detected_at__lt=cutoff_alerts,
     ).delete()
     deleted_alerts  = result[0]
+
+    # Verificaciones de pago que ya perdieron su alerta o nunca la tuvieron: el
+    # NIT de una persona natural también es dato personal, no lo guardes de más.
+    from apps.payment_shield.models import PaymentCheck
+    deleted_checks = PaymentCheck.objects.filter(
+        alert__isnull=True, created_at__lt=cutoff_alerts,
+    ).delete()[0]
 
     # Logs de auditoría más antiguos que DATA_RETENTION_INCIDENTS_DAYS
     # NOTA: AuditLog es inmutable por diseño — aquí usamos _delete directo de BD
@@ -182,5 +190,7 @@ def purge_old_data_task():
         )
         deleted_logs = cursor.rowcount
 
-    logger.info(f"Purga: {deleted_alerts} alertas, {deleted_logs} logs de auditoría eliminados")
-    return {"deleted_alerts": deleted_alerts, "deleted_audit_logs": deleted_logs}
+    logger.info(f"Purga: {deleted_alerts} alertas, {deleted_logs} logs de auditoría, "
+                f"{deleted_checks} verificaciones de pago eliminados")
+    return {"deleted_alerts": deleted_alerts, "deleted_audit_logs": deleted_logs,
+            "deleted_payment_checks": deleted_checks}

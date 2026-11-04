@@ -7,7 +7,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileSearch, Send, RotateCcw, Link2, Sparkles, ShieldCheck,
-  AlertTriangle, ChevronRight, Timer,
+  AlertTriangle, ChevronRight, Timer, Paperclip, X,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { alertsAPI } from '../services/api'
@@ -16,6 +16,7 @@ import {
   TypeBadge, MitreBadge, ScoreBar, ScoreGauge, ErrorBanner, Spinner,
   PageHeader, Section, tone, scoreTone,
 } from '../components/UI'
+import PaymentShieldPanel from '../components/PaymentShieldPanel'
 
 const EMPTY_FORM = { from: '', to: '', subject: '', auth: '', body: '' }
 
@@ -114,6 +115,7 @@ export default function AnalyzePage() {
   const resultRef = useRef(null)
   const [form, setForm]     = useState(EMPTY_FORM)
   const [result, setResult] = useState(null)
+  const [files, setFiles]   = useState([])
 
   const doAnalyze = useCallback(async () => {
     const payload = {
@@ -125,8 +127,8 @@ export default function AnalyzePage() {
       },
       body_text: form.body,
     }
-    return alertsAPI.analyze(payload)
-  }, [form])
+    return alertsAPI.analyze(payload, files)
+  }, [form, files])
 
   const { submit, submitting, error, setError } = useSubmit(doAnalyze)
 
@@ -151,6 +153,7 @@ export default function AnalyzePage() {
     setForm(EMPTY_FORM)
     setResult(null)
     setError(null)
+    setFiles([])
   }
 
   const update = key => e => setForm(f => ({ ...f, [key]: e.target.value }))
@@ -224,6 +227,31 @@ export default function AnalyzePage() {
             <p className="field-hint text-right tabular-nums">{form.body.length.toLocaleString('es-CO')} caracteres</p>
           </Section>
 
+          <Section title="Factura electrónica (opcional)"
+                   description="Sube el XML o el ZIP de la DIAN para validarla con el Escudo de pagos">
+            <label htmlFor="f-invoice" className="btn-secondary w-full cursor-pointer">
+              <Paperclip className="h-4 w-4" aria-hidden="true" />
+              Elegir archivo .xml o .zip
+            </label>
+            <input id="f-invoice" type="file" accept=".xml,.zip" multiple className="sr-only"
+                   onChange={e => { setFiles([...e.target.files]); e.target.value = '' }} />
+            {files.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {files.map(f => (
+                  <li key={f.name} className="well flex items-center gap-2 px-3 py-1.5">
+                    <span className="text-caption text-fg-2 flex-1 truncate">{f.name}</span>
+                    <button type="button" aria-label={`Quitar ${f.name}`}
+                            className="btn-ghost btn-icon h-6 w-6"
+                            onClick={() => setFiles(list => list.filter(x => x !== f))}>
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="field-hint">El archivo solo se lee para validarlo: no se guarda.</p>
+          </Section>
+
           <div className="flex gap-2">
             <button type="submit" disabled={submitting || !form.body.trim()}
               className="btn-primary btn-lg flex-1">
@@ -264,6 +292,11 @@ export default function AnalyzePage() {
           )}
 
           {result && <AnalysisResult result={result} />}
+
+          {result?.payment_shield && (
+            <PaymentShieldPanel key={result.payment_shield.check_id}
+                                shield={result.payment_shield} />
+          )}
 
           {result?.alert_created && result?.alert_id && (
             <button

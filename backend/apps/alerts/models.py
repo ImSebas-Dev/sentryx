@@ -93,6 +93,9 @@ class Alert(models.Model):
     url_count        = models.PositiveSmallIntegerField(default=0)
 
     ml_features     = models.JSONField(default=dict, blank=True)
+    # Señales de las capas de negocio (apps/alerts/risk_layers.py). Son aparte del
+    # score: no reescribas risk_score a partir de ellas.
+    risk_signals    = models.JSONField(default=dict, blank=True)
     suspicious_urls = models.JSONField(default=list, blank=True)
 
     mitre_tactic    = models.CharField(max_length=60, blank=True, default="Initial Access")

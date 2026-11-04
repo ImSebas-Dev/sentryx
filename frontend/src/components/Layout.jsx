@@ -9,7 +9,7 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import {
   ShieldCheck, Bell, FolderOpen, Globe2, FileSearch, LogOut,
-  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound,
+  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
@@ -30,6 +30,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/incidents',    label: 'Incidentes',      icon: FolderOpen },
       { to: '/threat-intel', label: 'Threat Intel',    icon: Globe2 },
+      { to: '/suppliers',    label: 'Proveedores',     icon: Building2, analystOnly: true },
     ],
   },
   {
@@ -83,11 +84,14 @@ function SidebarContent({ onNavClick }) {
     onNavClick?.()
   }
 
-  const sections = user?.role === 'admin'
-    ? NAV_SECTIONS.map(s => s.title === 'Gestión'
+  // Oculta las páginas por rol con estas marcas; el backend vuelve a exigir el permiso
+  const allowed = item => (!item.analystOnly || user?.role !== 'viewer')
+                       && (!item.adminOnly || user?.role === 'admin')
+  const sections = NAV_SECTIONS
+    .map(s => (user?.role === 'admin' && s.title === 'Gestión'
         ? { ...s, items: [...s.items, { to: '/pending-users', label: 'Usuarios pendientes', icon: Users }] }
-        : s)
-    : NAV_SECTIONS
+        : s))
+    .map(s => ({ ...s, items: s.items.filter(allowed) }))
 
   return (
     <div className="flex flex-col h-full">
@@ -97,7 +101,8 @@ function SidebarContent({ onNavClick }) {
             <p className="text-overline px-3 mb-1.5">{section.title}</p>
             <div className="space-y-0.5">
               {section.items.map(item => (
-                <NavItem key={item.to} {...item} onClick={onNavClick} />
+                <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon}
+                         badge={item.badge} onClick={onNavClick} />
               ))}
             </div>
           </div>

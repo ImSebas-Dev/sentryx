@@ -21,9 +21,15 @@ class AuditLog(models.Model):
         EXPORT        = "EXPORT",        "Exportación"
         ANALYZE       = "ANALYZE",       "Análisis de correo"
         CONFIG_CHANGE = "CONFIG_CHANGE", "Cambio de configuración"
+        # Escudo de pagos
+        SUPPLIER_CREATED = "SUPPLIER_CREATED", "Proveedor registrado"
+        SUPPLIER_UPDATED = "SUPPLIER_UPDATED", "Proveedor modificado"
+        SUPPLIER_DELETED = "SUPPLIER_DELETED", "Proveedor eliminado"
+        PAYMENT_VERIFIED = "PAYMENT_VERIFIED", "Verificación de pago registrada"
+        PAYMENT_RISK_ACK = "PAYMENT_RISK_ACK", "Usuario aceptó el riesgo de un pago"
 
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    action      = models.CharField(max_length=20, choices=Action.choices)
+    action      = models.CharField(max_length=40, choices=Action.choices)
     resource    = models.CharField(max_length=80)
     resource_id = models.CharField(max_length=40, blank=True)
 

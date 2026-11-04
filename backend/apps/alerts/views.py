@@ -19,9 +19,11 @@ from drf_spectacular.utils import (
 from drf_spectacular.types import OpenApiTypes
 
 from apps.alerts.models import Alert, PhishingCampaign
+from apps.alerts.risk_layers import RiskLayers
 from apps.alerts.serializers import (
     AlertListSerializer, AlertDetailSerializer, AlertUpdateSerializer,
-    EmailAnalysisRequestSerializer, EmailAnalysisResponseSerializer, PhishingCampaignSerializer,
+    EmailAnalysisMultipartSerializer, EmailAnalysisRequestSerializer,
+    EmailAnalysisResponseSerializer, PhishingCampaignSerializer,
 )
 from apps.alerts.ml_client  import analyze_email_sync, MLEngineError
 from apps.alerts.service    import create_alert_from_ml_result
@@ -180,11 +182,13 @@ def _trigger_auto_retrain(alert, user, correction_type: str):
 
 @extend_schema(
     tags=["alerts"], summary="Analizar un correo con el ensemble ML",
-    request=EmailAnalysisRequestSerializer,
+    request={"application/json": EmailAnalysisRequestSerializer,
+             "multipart/form-data": EmailAnalysisMultipartSerializer},
     responses={201: EmailAnalysisResponseSerializer, 200: EmailAnalysisResponseSerializer,
                503: OpenApiResponse(description="El motor ML no está disponible.")},
-    description="201 si se creó una alerta (score ≥ 40), 200 si el correo es legítimo. "
-                "Remitente, destinatario, asunto y cuerpo se guardan como SHA-256 + salt.",
+    description="201 si se creó una alerta (score ≥ 40 o una capa de negocio la exigió), "
+                "200 si no. Remitente, destinatario, asunto y cuerpo se guardan como "
+                "SHA-256 + salt. Los adjuntos no se guardan.",
     examples=[OpenApiExample("Correo BEC", request_only=True, value={
         "headers": {"from_addr": "CFO <cfo@empresa-pagos.tk>", "to_addr": "tesoreria@empresa.co",
                     "subject": "Cambio de cuenta bancaria urgente",
@@ -228,10 +232,18 @@ class EmailAnalyzeView(APIView):
         # llamada para que se seudonimice y nunca salga del backend.
         email_payload["headers"]["to"] = headers_data.get("to", "")
 
+        # Corre las capas de negocio aquí: no deben cambiar el score del ensemble
+        attachments = request.FILES.getlist("attachments")
+        attachment_names = data.get("attachment_names") or [f.name for f in attachments]
+        layers = RiskLayers(email_payload, attachments, attachment_names, request.user).evaluate()
+        adjusted = layers.adjust_ml_result(ml_result)
+
         # El usuario autenticado queda registrado como owner de la alerta
         alert = create_alert_from_ml_result(
-            ml_result, email_payload, "api", owner=request.user
+            adjusted, email_payload, "api", owner=request.user,
+            force=layers.force_alert, attachment_count=len(attachment_names),
         )
+        layer_fields = layers.apply(alert)
 
         ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
               or request.META.get("REMOTE_ADDR", ""))
@@ -250,13 +262,14 @@ class EmailAnalyzeView(APIView):
             "alert_id":        str(alert.pk) if alert else None,
             "risk_score":      ml_result.get("risk_score", 0),
             "classification":  ml_result.get("classification", "legitimate"),
-            "phishing_type":   ml_result.get("phishing_type", "unknown"),
-            "mitre_technique": ml_result.get("mitre_technique", "T1566"),
+            "phishing_type":   adjusted.get("phishing_type", "unknown"),
+            "mitre_technique": adjusted.get("mitre_technique", "T1566"),
             "scores_by_layer": ml_result.get("scores_by_layer", {}),
             "url_count":       ml_result.get("url_count", 0),
             "urls_analyzed":   ml_result.get("urls_analyzed", []),
             "inference_ms":    inference_ms,
             "alert_created":   alert is not None,
+            **layer_fields,
         }, status=status.HTTP_201_CREATED if alert else status.HTTP_200_OK)
 
 

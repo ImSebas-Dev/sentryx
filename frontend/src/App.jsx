@@ -15,6 +15,7 @@ import PendingUsersPage from './pages/PendingUsersPage'
 import ReportsPage from './pages/ReportsPage'
 import SecurityPage from './pages/SecurityPage'
 import { TermsPage, PrivacyPage, AccessibilityPage } from './pages/LegalPages'
+import SuppliersPage from './pages/SuppliersPage'
 
 // Guard — redirige al login si no hay sesión
 function RequireAuth({ children }) {
@@ -52,6 +53,7 @@ function AppRoutes() {
               <Route path="reports"             element={<ReportsPage />} />
               <Route path="pending-users"       element={<PendingUsersPage />} />
               <Route path="security"            element={<SecurityPage />} />
+              <Route path="suppliers"           element={<SuppliersPage />} />
               <Route path="*"                   element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

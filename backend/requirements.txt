@@ -38,6 +38,9 @@ pyotp==2.9.0
 qrcode[pil]==8.0
 cryptography==43.0.3
 
+# ── Escudo de pagos: lectura segura de XML de facturas (XXE) ──
+defusedxml==0.7.1
+
 # ── Informes ──────────────────────────────────────────────
 reportlab==4.2.5
 

@@ -39,6 +39,40 @@ if (!window.__sentryxContentLoaded) {
 
   const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
+  // Selectores de los adjuntos: cambian con las versiones de Gmail y Outlook.
+  // Actualízalos aquí; overlay.js usa los mismos para ocultar las descargas.
+  const GMAIL_ATTACHMENT_NAME = '.aV3, .aQA span[title]';
+  const OUTLOOK_ATTACHMENT_NAME = '[data-testid="attachment-card"] [title], div[role="listitem"] [title*="."]';
+  const ATTACHMENT_AREAS = {
+    gmail:   ['.aQH', '.hq.gt'],
+    outlook: ['[data-testid="attachment-card"]', 'div[role="list"][aria-label*="ttach"]',
+              'div[role="list"][aria-label*="djunto"]'],
+  };
+
+  function attachmentNames(selector, scope) {
+    const names = [...scope.querySelectorAll(selector)]
+      .map(el => el.getAttribute('title') || text(el))
+      .filter(Boolean);
+    return [...new Set(names)].slice(0, 50);
+  }
+
+  // Devuelve el elemento del cuerpo del correo abierto (lo usa overlay.js)
+  function currentBodyElement() {
+    if (window.location.hostname === 'mail.google.com') {
+      const message = lastVisible('.adn.ads');
+      return (message && message.querySelector('.a3s.aiL, .a3s')) || lastVisible('.a3s.aiL, .a3s');
+    }
+    const pane = document.querySelector('#ReadingPaneContainerId, [role="main"]') || document;
+    return firstMatch(['[aria-label="Cuerpo del mensaje"]', '[aria-label="Message body"]',
+                       '[data-testid="messageBody"]', 'div[role="document"]',
+                       '.allowTextSelection'], pane);
+  }
+  window.__sentryxDom = {
+    currentBodyElement,
+    attachmentAreas: () => ATTACHMENT_AREAS[
+      window.location.hostname === 'mail.google.com' ? 'gmail' : 'outlook'],
+  };
+
   // ── Detectar servicio de correo ─────────────────────────
   function detectService() {
     const host = window.location.hostname;
@@ -89,6 +123,7 @@ if (!window.__sentryxContentLoaded) {
       body_html:    bodyHtml.substring(0, MAX_HTML),
       body_text:    bodyText.substring(0, MAX_TEXT),
       auth_results: extractGmailAuthResults(scope),
+      attachment_names: attachmentNames(GMAIL_ATTACHMENT_NAME, scope),
       service:      'Gmail',
     };
   }
@@ -171,6 +206,7 @@ if (!window.__sentryxContentLoaded) {
       body_html:    bodyHtml.substring(0, MAX_HTML),
       body_text:    bodyText.substring(0, MAX_TEXT),
       auth_results: '', // Outlook no expone los encabezados en el DOM
+      attachment_names: attachmentNames(OUTLOOK_ATTACHMENT_NAME, messageScope),
       service:      detectService(),
     };
   }

@@ -48,7 +48,10 @@ def extract_domain(email_or_header: str) -> str:
     El dominio no es dato personal — es seguro almacenarlo.
     Ej: 'Evil Corp <attacker@evil.tk>' → 'evil.tk'
     """
-    match = re.search(r"@([\w.\-]+)", email_or_header.lower())
+    header = email_or_header.lower()
+    # Prioriza la dirección entre <>: en '"pagos@banco.co" <x@evil.tk>' el dominio
+    # real es evil.tk; lo primero que aparece es solo el nombre visible.
+    match = re.search(r"<[^<>@]*@([\w.\-]+)>\s*$", header) or re.search(r"@([\w.\-]+)", header)
     return match.group(1) if match else ""
 
 

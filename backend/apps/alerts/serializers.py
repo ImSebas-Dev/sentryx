@@ -40,7 +40,7 @@ class AlertDetailSerializer(serializers.ModelSerializer):
             "id", "severity", "phishing_type", "status", "title", "description",
             "risk_score", "score_headers", "score_content", "score_urls",
             "sender_domain", "has_attachments", "attachment_count", "url_count",
-            "ml_features", "suspicious_urls",
+            "ml_features", "suspicious_urls", "risk_signals",
             "mitre_tactic", "mitre_technique",
             "campaign", "assigned_to_name",
             "detected_at", "updated_at",
@@ -80,11 +80,15 @@ class EmailHeadersInputSerializer(serializers.Serializer):
 class EmailAnalysisRequestSerializer(serializers.Serializer):
     """
     Payload para POST /api/v1/alerts/analyze/
-    Acepta un correo completo para análisis.
+    Acepta un correo completo para análisis, en JSON o en multipart/form-data
+    (en multipart los encabezados van como headers.from_addr, headers.subject...).
     """
     headers   = EmailHeadersInputSerializer(required=False)
     body_text = serializers.CharField(required=False, allow_blank=True, default="")
     body_html = serializers.CharField(required=False, allow_blank=True, default="")
+    attachment_names = serializers.ListField(
+        child=serializers.CharField(max_length=255), required=False, max_length=50,
+        help_text="Nombres de los adjuntos, sin su contenido (los envía la extensión)")
 
     def validate(self, data):
         if not data.get("body_text") and not data.get("body_html"):
@@ -92,6 +96,13 @@ class EmailAnalysisRequestSerializer(serializers.Serializer):
                 "Se requiere al menos body_text o body_html."
             )
         return data
+
+
+class EmailAnalysisMultipartSerializer(EmailAnalysisRequestSerializer):
+    """Solo documenta la variante multipart: el archivo se lee de request.FILES."""
+    attachments = serializers.ListField(
+        child=serializers.FileField(), required=False,
+        help_text="Adjuntos del correo. .xml y .zip se revisan como factura electrónica")
 
 
 class EmailAnalysisResponseSerializer(serializers.Serializer):
@@ -106,3 +117,7 @@ class EmailAnalysisResponseSerializer(serializers.Serializer):
     urls_analyzed  = serializers.ListField()
     inference_ms   = serializers.FloatField()
     alert_created  = serializers.BooleanField()
+    severity       = serializers.CharField(required=False,
+                         help_text="Severidad final tras las capas de negocio")
+    payment_shield = serializers.DictField(required=False,
+                         help_text="Resultado del Escudo de pagos, si aplica")

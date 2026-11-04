@@ -67,11 +67,26 @@ extension/
 ├── manifest.json   Configuración (Manifest V3)
 ├── background.js   Sesión JWT, verificación en dos pasos y llamadas al backend
 ├── content.js      Lee el correo abierto en el DOM de Gmail u Outlook
+├── overlay.js      Banner del Escudo de pagos y capa de bloqueo sobre el correo
 ├── popup.html      Interfaz del popup
 ├── popup.js        Lógica del popup y de la configuración
 ├── styles.css      Estilos (tema claro y oscuro)
 └── icons/          Iconos de 16, 32, 48 y 128 px
 ```
+
+## Escudo de pagos
+
+Si el análisis detecta un pago que no coincide con tus proveedores, la extensión pone un
+banner rojo sobre el correo con el número de confianza registrado y desactiva los enlaces.
+**Entiendo el riesgo** retira el banner y deja constancia en la auditoría de Sentryx.
+
+La extensión envía solo los nombres de los adjuntos, nunca su contenido. Los selectores
+del DOM de Gmail y Outlook cambian con el tiempo: revísalos en `content.js` si el banner
+no encuentra el correo.
+
+## Cambios en la versión 1.3.0
+
+- Banner del Escudo de pagos sobre el correo y envío de los nombres de los adjuntos.
 
 ## Cambios en la versión 1.2.0
 

@@ -194,6 +194,8 @@ function buildPayload(emailData) {
     },
     body_text: bodyText || bodyHtml,
     body_html: bodyHtml || bodyText,
+    // Solo los nombres: el contenido de los adjuntos no sale del correo
+    attachment_names: emailData.attachment_names || [],
   };
 }
 
@@ -248,6 +250,26 @@ async function analyzeEmail(emailData) {
   return result;
 }
 
+// Llamada autenticada genérica para el banner y la capa de bloqueo
+async function authedFetch(path, options = {}) {
+  const config = await getConfig();
+  const send = token => fetchWithTimeout(`${config.backendUrl}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  });
+  let res = await send(await getValidToken(config));
+  if (res.status === 401) {
+    await chrome.storage.local.remove('accessToken');
+    res = await send(await renewToken(await getConfig()));
+  }
+  if (!res.ok) {
+    const err = new Error(await extractError(res, 'Error del servidor'));
+    err.status = res.status;
+    throw err;
+  }
+  return res.status === 204 ? {} : res.json();
+}
+
 // ── Test de conexión ──────────────────────────────────────
 async function testConnection(backendUrl, email, password) {
   // 1. Verificar que el backend responde
@@ -269,6 +291,13 @@ const handlers = {
   async ANALYZE_EMAIL(message) {
     const result = await analyzeEmail(message.emailData);
     return { success: true, data: result };
+  },
+
+  // ── Banner del Escudo de pagos ─────────────────────────
+  async ACK_PAYMENT_RISK(message) {
+    await authedFetch(`/payment-shield/checks/${encodeURIComponent(message.checkId)}/acknowledge-risk/`,
+                      { method: 'POST' });
+    return { success: true };
   },
 
   // ── Guardar configuración y verificar conexión ─────────
