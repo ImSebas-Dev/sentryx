@@ -56,6 +56,14 @@ def periodic_tasks(settings):
             "interval_minutes": settings.FOUR_EYES_EXPIRY_CHECK_MINUTES,
             "description": "Vence las solicitudes de cuatro ojos sin decidir y escala a los admins.",
         },
+        {
+            "name": "community_sync",
+            "task": "community.sync",
+            "queue": "default",
+            "interval_minutes": settings.COMMUNITY_SYNC_MINUTES,
+            "description": "Envía los indicadores nuevos al hub y descarga el feed. "
+                           "No hace nada si la red está apagada o sin configurar.",
+        },
     ]
 
 

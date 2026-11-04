@@ -164,6 +164,15 @@ export const responseAPI = {
   deleteContact: (id)       => api.delete(`/response/contacts/${id}/`),
 }
 
+export const communityAPI = {
+  settings: ()     => api.get('/community/settings/'),
+  update:   (data) => api.put('/community/settings/', data),
+  enable:   (data) => api.post('/community/enable/', data),
+  disable:  ()     => api.post('/community/disable/'),
+  sync:     ()     => api.post('/community/sync/', null, { timeout: 60000 }),
+  summary:  ()     => api.get('/community/summary/'),
+}
+
 export const auditAPI = {
   list: (params) => api.get('/audit/', { params }),
 }

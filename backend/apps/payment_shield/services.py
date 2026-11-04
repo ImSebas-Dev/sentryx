@@ -67,6 +67,12 @@ TAG_RE = re.compile(r"<[^>]+>")
 
 # Sustituciones visuales típicas de los dominios falsos. Amplía aquí las nuevas.
 CONFUSABLE_SEQUENCES = [("rn", "m"), ("vv", "w"), ("0", "o"), ("1", "l"), ("5", "s")]
+# Sufijos de dos niveles: en proveedor.com.co el nombre es "proveedor", no "proveedor.com".
+# Sin esto, proveedor.co no se detecta como imitación de proveedor.com.co.
+MULTI_LABEL_SUFFIXES = {
+    "com.co", "net.co", "org.co", "edu.co", "gov.co", "mil.co", "nom.co",
+    "com.mx", "com.ar", "com.pe", "com.ec", "com.br", "co.uk",
+}
 CONFUSABLE_CHARS = str.maketrans({
     "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "х": "x", "і": "i", "ѕ": "s",
 })
@@ -229,6 +235,16 @@ def _decode_idn(domain: str) -> str:
         return domain
 
 
+def _split_domain(domain: str) -> tuple[str, str]:
+    """Devuelve (nombre, sufijo): pagos.proveedor.com.co da ("proveedor", "com.co")."""
+    labels = domain.split(".")
+    if len(labels) >= 3 and ".".join(labels[-2:]) in MULTI_LABEL_SUFFIXES:
+        return labels[-3], ".".join(labels[-2:])
+    if len(labels) >= 2:
+        return labels[-2], labels[-1]
+    return domain, ""
+
+
 def domain_is_authorized(sender: str, domains: list[str]) -> bool:
     """Acepta el dominio exacto o un subdominio suyo (pagos.proveedor.co)."""
     return any(sender == d or sender.endswith(f".{d}") for d in domains)
@@ -242,15 +258,23 @@ def is_lookalike(sender: str, registered: str) -> bool:
     # proveedor.co.evil.tk: el dominio legítimo aparece como prefijo de otro
     if sender.startswith(f"{registered}."):
         return True
-    sender_sld, _, sender_tld = sender.rpartition(".")
-    reg_sld, _, reg_tld = registered.rpartition(".")
-    if sender_sld == reg_sld and sender_tld != reg_tld:
+    sender_name, _ = _split_domain(sender)
+    reg_name, _ = _split_domain(registered)
+    # Mismo nombre con otro TLD: proveedor.co, proveedor.com o pagos.proveedor.net
+    if sender_name == reg_name:
         return True
     if _canonical_domain(sender) == _canonical_domain(registered):
         return True
+    if _canonical_domain(sender_name) == _canonical_domain(reg_name):
+        return True
+    # proveedor.evil.tk: el nombre legítimo aparece como subdominio del atacante.
+    # Exige un largo mínimo: un nombre corto como "ab" aparece por casualidad.
+    if len(reg_name) >= 5 and reg_name in sender.split("."):
+        return True
     # Con un nombre corto dos ediciones lo convierten en otro dominio cualquiera
-    allowed = 2 if len(reg_sld) >= 5 else 1
-    return levenshtein(sender, registered) <= allowed
+    allowed = 2 if len(reg_name) >= 5 else 1
+    return (levenshtein(sender, registered) <= allowed
+            or levenshtein(sender_name, reg_name) <= allowed)
 
 
 # ── 4. Orquestación ───────────────────────────────────────

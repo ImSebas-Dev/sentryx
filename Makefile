@@ -54,6 +54,9 @@ test-backend: ## Tests solo del backend con detalle
 test-ml: ## Tests solo del ML Engine
 	$(ML) pytest --cov=. --cov-report=term-missing -v
 
+test-hub: ## Tests del hub de la Red de alerta (en un contenedor temporal)
+	$(DC) --profile hub run --rm --no-deps -e COMMUNITY_HUB_DATABASE_URL=sqlite:// community_hub pytest
+
 test-fast: ## Tests rápidos (sin marcados slow)
 	$(BE) pytest -m "not slow" -q
 	$(ML) pytest -m "not slow" -q

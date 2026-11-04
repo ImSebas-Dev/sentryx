@@ -41,6 +41,7 @@ LOCAL_APPS = [
     "apps.payment_shield",
     "apps.four_eyes",
     "apps.response",
+    "apps.community",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -188,6 +189,7 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     # Varios modelos tienen un campo "status": dar a cada enum un nombre propio
     "ENUM_NAME_OVERRIDES": {
+        "SeverityEnum":            "apps.alerts.models.Alert.Severity",
         "AlertStatusEnum":         "apps.alerts.models.Alert.Status",
         "IncidentStatusEnum":      "apps.incidents.models.Incident.Status",
         "RetrainingJobStatusEnum": "apps.ml_feedback.models.RetrainingJob.Status",
@@ -209,6 +211,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Escudo de pagos", "description": "Proveedores de confianza y validación de pagos y facturas DIAN"},
         {"name": "Cuatro ojos", "description": "Aprobación de una segunda persona para correos de alto riesgo"},
         {"name": "Respuesta a incidentes", "description": "Asistente de los primeros 15 minutos y paquete de denuncia"},
+        {"name": "Red de alerta", "description": "Avisos tempranos entre pymes con opt-in; solo se comparten hashes"},
     ],
 }
 
@@ -295,6 +298,13 @@ FOUR_EYES_EXPIRY_CHECK_MINUTES   = config("FOUR_EYES_EXPIRY_CHECK_MINUTES", defa
 # ── Respuesta a incidentes ────────────────────────────────
 # Enlace que se muestra para denunciar. Sentryx no envía nada automáticamente.
 CAI_VIRTUAL_URL = config("CAI_VIRTUAL_URL", default="")
+
+# ── Red de alerta entre pymes ─────────────────────────────
+# Sin COMMUNITY_HUB_URL la red queda inactiva: el resto del sistema funciona igual.
+COMMUNITY_HUB_URL      = config("COMMUNITY_HUB_URL", default="")
+COMMUNITY_NODE_API_KEY = config("COMMUNITY_NODE_API_KEY", default="")
+COMMUNITY_NETWORK_KEY  = config("COMMUNITY_NETWORK_KEY", default="")
+COMMUNITY_SYNC_MINUTES = config("COMMUNITY_SYNC_MINUTES", default=15, cast=int)
 
 # ── Estáticos ─────────────────────────────────────────────
 STATIC_URL  = "/static/"

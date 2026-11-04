@@ -121,6 +121,8 @@ class EmailAnalysisResponseSerializer(serializers.Serializer):
                          help_text="Severidad final tras las capas de negocio")
     payment_shield = serializers.DictField(required=False,
                          help_text="Resultado del Escudo de pagos, si aplica")
+    community = serializers.DictField(required=False,
+                         help_text="Coincidencia con la Red de alerta, si aplica")
     four_eyes_required = serializers.BooleanField(required=False)
     four_eyes_reasons  = serializers.ListField(required=False,
                          help_text="Motivos por los que requiere una segunda persona")

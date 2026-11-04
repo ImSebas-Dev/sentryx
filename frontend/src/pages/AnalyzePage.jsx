@@ -18,6 +18,7 @@ import {
 } from '../components/UI'
 import PaymentShieldPanel from '../components/PaymentShieldPanel'
 import FourEyesPanel from '../components/FourEyesPanel'
+import CommunityNotice from '../components/CommunityNotice'
 
 const EMPTY_FORM = { from: '', to: '', subject: '', auth: '', body: '' }
 
@@ -302,6 +303,8 @@ export default function AnalyzePage() {
           )}
 
           {result && <AnalysisResult result={result} />}
+
+          <CommunityNotice signal={result?.community} />
 
           {result?.four_eyes_required && (
             <FourEyesPanel alertId={result.alert_id} reasons={result.four_eyes_reasons} />

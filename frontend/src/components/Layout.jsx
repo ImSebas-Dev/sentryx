@@ -9,7 +9,7 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import {
   ShieldCheck, Bell, FolderOpen, Globe2, FileSearch, LogOut,
-  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon, Siren, PhoneCall,
+  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon, Siren, PhoneCall, Network,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
@@ -43,6 +43,7 @@ const NAV_SECTIONS = [
       { to: '/retraining',   label: 'Reentrenamiento', icon: Brain },
       { to: '/four-eyes-policy', label: 'Política de cuatro ojos', icon: PolicyIcon, adminOnly: true },
       { to: '/emergency-contacts', label: 'Contactos de emergencia', icon: PhoneCall, adminOnly: true },
+      { to: '/community',    label: 'Red de alerta',   icon: Network, adminOnly: true },
     ],
   },
   {

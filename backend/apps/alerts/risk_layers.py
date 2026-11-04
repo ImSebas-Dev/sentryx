@@ -20,6 +20,12 @@ SEVERITY_RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
 BEC_TECHNIQUE = "T1566.002"
 
 
+def community_services():
+    # Importa aquí: apps.community usa los modelos de alertas y de esta capa
+    from apps.community import services
+    return services
+
+
 def severity_at_least(severity: str, minimum: str) -> bool:
     return SEVERITY_RANK.get(severity, 0) >= SEVERITY_RANK.get(minimum, 0)
 
@@ -44,6 +50,7 @@ class RiskLayers:
         self.user = user
         self.organization = org_of(user)
         self.shield = None
+        self.community = None
         self.response = {}
 
     def evaluate(self):
@@ -56,13 +63,23 @@ class RiskLayers:
             )
         except Exception:
             logger.exception("[RiskLayers] Falló el Escudo de pagos")
+        try:
+            self.community = community_services().match_email(
+                self.organization, headers.get("from", ""),
+                self.email_payload.get("body_text", ""),
+                self.email_payload.get("body_html", ""),
+            )
+        except Exception:
+            logger.exception("[RiskLayers] Falló la consulta a la Red de alerta")
         return self
 
     @property
     def force_alert(self) -> bool:
         # Crea la alerta aunque el score sea bajo: un BEC bien escrito engaña al
         # modelo de contenido, y sin alerta no habría dónde elevar la severidad.
-        return bool(self.shield and self.shield.is_risky)
+        if self.shield and self.shield.is_risky:
+            return True
+        return community_services().should_elevate(self.community)
 
     def adjust_ml_result(self, ml_result: dict) -> dict:
         """Copia del resultado con el tipo de ataque corregido; el score no se toca."""
@@ -88,11 +105,25 @@ class RiskLayers:
             if check is not None and check.is_risky:
                 elevate_severity(alert, Alert.Severity.HIGH, "payment_shield",
                                  payment_shield.VERDICT_MESSAGES[check.verdict])
+            if self.community:
+                alert.risk_signals["community"] = self.community
+                if community_services().should_elevate(self.community):
+                    elevate_severity(alert, Alert.Severity.HIGH, "community",
+                                     self.community["message"])
             # Evalúa después de elevar la severidad: la política depende de ella
             self._apply_four_eyes(alert, check)
             alert.save(update_fields=["risk_signals", "severity"])
             self.response["severity"] = alert.severity
+        if self.community:
+            self.response["community"] = self.community
         return self.response
+
+    def record_for_network(self, alert, ml_result):
+        """Deja listos los indicadores de la alerta; solo se envían con opt-in."""
+        try:
+            community_services().record_outbox(alert, self.organization, self.email_payload, ml_result)
+        except Exception:
+            logger.exception("[RiskLayers] No se pudieron preparar los indicadores de la red")
 
     def _apply_four_eyes(self, alert, check):
         from apps.four_eyes import services as four_eyes

@@ -131,7 +131,7 @@ $COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm backend \
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='admin@sentryx.local').exists():
-    u = User.objects.create_superuser('admin', 'admin@sentryx.local', 'admin123', role='admin')
+    u = User.objects.create_superuser('admin', 'admin@sentryx.local', 'admin123', role='admin', organization='Sentryx Demo')
     u.is_email_verified = True
     u.is_approved = True
     u.accepted_terms = True
@@ -152,7 +152,7 @@ $COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm backend \
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='analista@sentryx.local').exists():
-    u = User.objects.create_user('analista', 'analista@sentryx.local', 'analista123', role='analyst')
+    u = User.objects.create_user('analista', 'analista@sentryx.local', 'analista123', role='analyst', organization='Sentryx Demo')
     u.is_email_verified = True
     u.is_approved = True
     u.accepted_terms = True

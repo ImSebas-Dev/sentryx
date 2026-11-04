@@ -40,6 +40,9 @@ class AuditLog(models.Model):
         RESPONSE_STARTED   = "RESPONSE_STARTED",   "Respuesta guiada iniciada"
         RESPONSE_STEP      = "RESPONSE_STEP",      "Paso de respuesta guiada"
         RESPONSE_COMPLETED = "RESPONSE_COMPLETED", "Respuesta guiada terminada"
+        # Red de alerta
+        COMMUNITY_OPT_IN  = "COMMUNITY_OPT_IN",  "Red de alerta activada con consentimiento"
+        COMMUNITY_OPT_OUT = "COMMUNITY_OPT_OUT", "Red de alerta desactivada"
 
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     action      = models.CharField(max_length=40, choices=Action.choices)

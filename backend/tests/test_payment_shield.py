@@ -150,6 +150,12 @@ class TestLookalike(TestCase):
         self.assertTrue(services.is_lookalike("rnicrosoft.com", "microsoft.com"))
         self.assertTrue(services.is_lookalike("paypa1.com", "paypal.com"))
 
+    def test_two_level_colombian_suffix(self):
+        for fake in ("transandes.co", "transandes.com", "transandez.com.co",
+                     "pagos.transandes.net", "transandes.evil.tk", "tr4nsandes.com.co"):
+            self.assertTrue(services.is_lookalike(fake, "transandes.com.co"), fake)
+        self.assertFalse(services.is_lookalike("otraempresa.com.co", "transandes.com.co"))
+
     def test_cyrillic_homoglyph(self):
         self.assertTrue(services.is_lookalike("prоveedor.co", "proveedor.co"))
 

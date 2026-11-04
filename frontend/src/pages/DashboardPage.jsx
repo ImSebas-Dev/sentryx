@@ -8,7 +8,7 @@ import {
   Target, Layers, FileSearch, ChevronRight,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { alertsAPI, fourEyesAPI } from '../services/api'
+import { alertsAPI, communityAPI, fourEyesAPI } from '../services/api'
 import { useFetch, usePolling } from '../hooks/useFetch'
 import { useTheme } from '../store/ThemeContext'
 import {
@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const { data: alertsData } =
     useFetch(() => alertsAPI.list({ page_size: 5, ordering: '-detected_at' }))
   const { data: fourEyes } = useFetch(() => fourEyesAPI.stats())
+  const { data: network } = useFetch(() => communityAPI.summary())
 
   if (loading) return <LoadingScreen />
 
@@ -160,6 +161,22 @@ export default function DashboardPage() {
           )}
         </Section>
       </div>
+
+      {/* Solo se muestra a las empresas que activaron la red */}
+      {network?.enabled && (
+        <Section title="Red de alerta" description={`Últimas 24 horas · sector ${network.sector} · ${network.region}`}>
+          <dl className="grid grid-cols-2 gap-3" data-testid="community-summary">
+            <div className="well p-3.5">
+              <dt className="text-caption font-semibold text-fg-2">Campañas activas en tu sector y región</dt>
+              <dd className="text-title3 font-semibold text-fg tabular-nums mt-1">{network.active_campaigns}</dd>
+            </div>
+            <div className="well p-3.5">
+              <dt className="text-caption font-semibold text-fg-2">Coincidieron con correos de tu empresa</dt>
+              <dd className="text-title3 font-semibold text-fg tabular-nums mt-1">{network.matches}</dd>
+            </div>
+          </dl>
+        </Section>
+      )}
 
       {/* Evidencia de uso del control de cuatro ojos */}
       {fourEyes && (

@@ -21,6 +21,10 @@ CELERY_TASK_EAGER_PROPAGATES = True
 PSEUDONYMIZATION_SALT        = "test-salt-not-for-production"
 MFA_ENCRYPTION_KEY           = "test-mfa-key-not-for-production"
 PAYMENT_SHIELD_SECRET        = "test-payment-shield-secret"
+COMMUNITY_NETWORK_KEY        = "test-network-key"
+COMMUNITY_HUB_URL            = ""
+COMMUNITY_NODE_API_KEY       = ""
+COMMUNITY_SYNC_MINUTES       = 15
 
 REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_CLASSES": []}  # noqa
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

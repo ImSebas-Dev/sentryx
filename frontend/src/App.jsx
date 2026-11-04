@@ -20,6 +20,7 @@ import ApprovalsPage from './pages/ApprovalsPage'
 import FourEyesPolicyPage from './pages/FourEyesPolicyPage'
 import ResponseWizardPage from './pages/ResponseWizardPage'
 import EmergencyContactsPage from './pages/EmergencyContactsPage'
+import CommunityPage from './pages/CommunityPage'
 
 // Guard — redirige al login si no hay sesión
 function RequireAuth({ children }) {
@@ -63,6 +64,7 @@ function AppRoutes() {
               <Route path="four-eyes-policy"    element={<FourEyesPolicyPage />} />
               <Route path="respond"             element={<ResponseWizardPage />} />
               <Route path="emergency-contacts"  element={<EmergencyContactsPage />} />
+              <Route path="community"           element={<CommunityPage />} />
               <Route path="*"                   element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

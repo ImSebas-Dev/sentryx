@@ -15,6 +15,7 @@ import {
 } from '../components/UI'
 import PaymentShieldPanel from '../components/PaymentShieldPanel'
 import FourEyesPanel from '../components/FourEyesPanel'
+import CommunityNotice from '../components/CommunityNotice'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -134,6 +135,8 @@ export default function AlertDetailPage() {
               {adj.reason} El score del modelo no cambió.
             </MessageBar>
           ))}
+
+          <CommunityNotice signal={signals.community} />
 
           {signals.four_eyes?.required && (
             <FourEyesPanel alertId={alert.id} reasons={signals.four_eyes.reasons} />

@@ -244,6 +244,7 @@ class EmailAnalyzeView(APIView):
             force=layers.force_alert, attachment_count=len(attachment_names),
         )
         layer_fields = layers.apply(alert)
+        layers.record_for_network(alert, ml_result)
 
         ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
               or request.META.get("REMOTE_ADDR", ""))
