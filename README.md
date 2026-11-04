@@ -31,6 +31,18 @@ URLs        (25%)  →  Random Forest (URLs embebidas en el correo)
               legitimate | suspicious | phishing | critical
 ```
 
+## Funciones para pymes
+
+Capas de negocio que corren después del ensemble, sin cambiar sus pesos, umbrales ni modelos.
+Detalle, límites y pruebas paso a paso en [`docs/innovaciones.md`](docs/innovaciones.md).
+
+| Función | Para qué sirve |
+|---|---|
+| **Escudo de pagos** | Compara los correos que piden pagar con un directorio de proveedores y valida la factura electrónica DIAN |
+| **Control de cuatro ojos** | Bloquea los correos de alto riesgo hasta que una segunda persona los apruebe con su código TOTP |
+| **Respuesta guiada** | Guía los primeros 15 minutos tras caer en un phishing y genera el paquete de denuncia en PDF |
+| **Red de alerta** | Avisa cuando otras pymes reportan la misma campaña. Es opt-in y solo comparte huellas de indicadores |
+
 ## Stack tecnológico
 
 | Capa | Tecnología |
@@ -65,6 +77,12 @@ Credenciales de desarrollo: `admin@sentryx.local` / `admin123` y `analista@sentr
 Para actualizar una instalación anterior, compara tu `.env` con [`.env.example`](.env.example):
 `setup.sh` avisa de las variables que faltan (por ejemplo `MFA_ENCRYPTION_KEY`).
 
+Ninguna función nueva impide arrancar si faltan sus variables: se desactiva sola. Las funciones por
+empresa necesitan que cada usuario tenga organización; un admin la asigna desde `/admin/`.
+
+El hub de la Red de alerta es opcional y se levanta aparte con `docker compose --profile hub up`
+(panel del operador en http://localhost:8100/operator).
+
 ## Seguridad y tareas programadas
 
 - **Verificación en dos pasos (TOTP)** compatible con Google Authenticator y Microsoft
@@ -73,7 +91,8 @@ Para actualizar una instalación anterior, compara tu `.env` con [`.env.example`
 - **Celery Beat** (hora de Bogotá), registrado por migración:
   purga diaria a las 02:00 (alertas cerradas a 90 días, auditoría a 365),
   PhishTank cada hora, OpenPhish cada 6 horas y reentrenamiento mensual
-  (día 1, 03:00) si hay al menos `ML_RETRAIN_MIN_SAMPLES` correcciones.
+  (día 1, 03:00) si hay al menos `ML_RETRAIN_MIN_SAMPLES` correcciones. También vence las
+  solicitudes de cuatro ojos cada 5 minutos y sincroniza la Red de alerta cada 15.
 - **Extensión de navegador** para Gmail y Outlook: ver [extension/README.md](extension/README.md).
 
 ## Estructura del repositorio
@@ -86,7 +105,12 @@ sentryx/
 │       ├── incidents/        # Gestión de incidentes
 │       ├── threat_intel/     # IOCs especializados en phishing
 │       ├── audit/            # Log inmutable (Ley 1581/2012)
-│       └── users/            # RBAC: admin, analyst, viewer
+│       ├── users/            # RBAC: admin, analyst, viewer
+│       ├── payment_shield/   # Escudo de pagos y factura DIAN
+│       ├── four_eyes/        # Aprobación de una segunda persona
+│       ├── response/         # Respuesta guiada y paquete de denuncia
+│       └── community/        # Red de alerta, lado del nodo
+├── community_hub/            # Hub de la Red de alerta (FastAPI, perfil "hub")
 ├── ml_engine/                # FastAPI + ensemble de tres modelos
 │   └── pipelines/
 │       ├── email_headers.py  # Random Forest — SPF, DKIM, typosquatting
@@ -110,6 +134,7 @@ make up             # Levantar todos los servicios
 make test           # Correr todos los tests
 make test-ml        # Tests solo del ML Engine
 make test-backend   # Tests solo del backend
+make test-hub       # Tests del hub de la Red de alerta
 make logs           # Ver logs en tiempo real
 make down           # Detener servicios
 ```

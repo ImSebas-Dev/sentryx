@@ -20,6 +20,8 @@ django-redis==5.4.0
 # ── Celery / Broker ───────────────────────────────────────
 celery==5.4.0
 redis==5.1.1
+# Fija kombu: la 5.7 exige redis-py 6.1 o superior y sin esto el worker no arranca
+kombu==5.6.2
 # Monitor de tareas (servicio flower de docker-compose.dev.yml)
 flower==2.0.1
 

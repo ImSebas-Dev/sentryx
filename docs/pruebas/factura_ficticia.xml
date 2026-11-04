@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FACTURA FICTICIA, solo para probar el Escudo de pagos de Sentryx. No es un documento
+  tributario. El NIT 900999991-6 cumple el dígito de verificación pero fue inventado
+  para esta prueba, y el CUFE es un SHA-384 de un texto de ejemplo: el catálogo de la
+  DIAN no lo va a encontrar.
+
+  Para probar otros veredictos cambia un dato y vuelve a analizar:
+    - schemeID="1"                 falla el dígito de verificación
+    - UUID más corto               falla el formato del CUFE
+    - PayableAmount distinto       falla el valor, si el correo menciona uno
+    - cuenta distinta en cbc:ID    veredicto account_mismatch
+-->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:UBLVersionID>UBL 2.1</cbc:UBLVersionID>
+  <cbc:ID>FE-1001</cbc:ID>
+  <cbc:UUID schemeName="CUFE-SHA384">d79f3b76389f8dc582ba8ac556e220352ae6b8931695ee6a89044658b0c0113d8bcf9d38d17ecda39ba22b9f07b15279</cbc:UUID>
+  <cbc:IssueDate>2026-11-01</cbc:IssueDate>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>Transportes Ficticios del Ejemplo SAS</cbc:Name></cac:PartyName>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID schemeID="6" schemeName="31" schemeAgencyID="195">900999991</cbc:CompanyID>
+      </cac:PartyTaxScheme>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>42</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>12345678901</cbc:ID>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:LegalMonetaryTotal>
+    <cbc:PayableAmount currencyID="COP">1500000.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+</Invoice>
