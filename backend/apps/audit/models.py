@@ -36,6 +36,10 @@ class AuditLog(models.Model):
         FOUR_EYES_POLICY_CHANGED = "FOUR_EYES_POLICY_CHANGED", "Política de cuatro ojos modificada"
         # Intentos rechazados: autoaprobación, otra organización, TOTP inválido...
         FOUR_EYES_DENIED    = "FOUR_EYES_DENIED",    "Intento rechazado en cuatro ojos"
+        # Respuesta guiada
+        RESPONSE_STARTED   = "RESPONSE_STARTED",   "Respuesta guiada iniciada"
+        RESPONSE_STEP      = "RESPONSE_STEP",      "Paso de respuesta guiada"
+        RESPONSE_COMPLETED = "RESPONSE_COMPLETED", "Respuesta guiada terminada"
 
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     action      = models.CharField(max_length=40, choices=Action.choices)

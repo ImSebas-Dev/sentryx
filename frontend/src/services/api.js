@@ -148,6 +148,22 @@ export const fourEyesAPI = {
   cancel:       (id)       => api.post(`/four-eyes/requests/${id}/cancel/`),
 }
 
+export const responseAPI = {
+  playbooks:     ()         => api.get('/response/playbooks/'),
+  config:        ()         => api.get('/response/config/'),
+  start:         (data)     => api.post('/response/start/', data),
+  session:       (id)       => api.get(`/response/${id}/`),
+  step:          (id, stepId, data) => api.post(`/response/${id}/steps/${stepId}/`, data),
+  complete:      (id)       => api.post(`/response/${id}/complete/`),
+  report:        (id)       => api.get(`/response/${id}/report.pdf`, {
+    responseType: 'blob', timeout: 60000,
+  }),
+  contacts:      ()         => api.get('/response/contacts/'),
+  createContact: (data)     => api.post('/response/contacts/', data),
+  updateContact: (id, data) => api.patch(`/response/contacts/${id}/`, data),
+  deleteContact: (id)       => api.delete(`/response/contacts/${id}/`),
+}
+
 export const auditAPI = {
   list: (params) => api.get('/audit/', { params }),
 }

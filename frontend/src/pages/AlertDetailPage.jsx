@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, User, Link2, LockKeyhole, CheckCircle2, XCircle,
-  CalendarClock, Save,
+  CalendarClock, Save, Siren,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { alertsAPI } from '../services/api'
@@ -227,6 +227,12 @@ export default function AlertDetailPage() {
               </div>
             </Section>
           )}
+
+          <button type="button" onClick={() => navigate(`/respond?alert=${alert.id}`)}
+                  className="btn-secondary w-full border-red-line text-red-fg">
+            <Siren className="h-4 w-4" aria-hidden="true" />
+            Hice clic en este correo
+          </button>
 
           <Section title="Metadatos" bodyClassName="px-4 sm:px-5 py-1.5">
             <dl>

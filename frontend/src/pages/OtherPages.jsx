@@ -143,6 +143,9 @@ export function IncidentsPage() {
                       <SeverityBadge severity={inc.severity} />
                       <StatusBadge status={inc.status} />
                       {inc.mitre_technique && <MitreBadge technique={inc.mitre_technique} />}
+                      {inc.guided_response && (
+                        <span className={clsx('badge', tone('pink').badge)}>Respuesta guiada</span>
+                      )}
                     </div>
                     <p className="text-body font-semibold text-fg truncate">{inc.title}</p>
                     <p className="text-caption text-fg-3">

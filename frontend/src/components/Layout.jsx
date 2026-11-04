@@ -9,7 +9,7 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import {
   ShieldCheck, Bell, FolderOpen, Globe2, FileSearch, LogOut,
-  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon,
+  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon, Siren, PhoneCall,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
@@ -42,6 +42,7 @@ const NAV_SECTIONS = [
       { to: '/reports',      label: 'Informes',        icon: FileText },
       { to: '/retraining',   label: 'Reentrenamiento', icon: Brain },
       { to: '/four-eyes-policy', label: 'Política de cuatro ojos', icon: PolicyIcon, adminOnly: true },
+      { to: '/emergency-contacts', label: 'Contactos de emergencia', icon: PhoneCall, adminOnly: true },
     ],
   },
   {
@@ -261,9 +262,20 @@ export default function Layout({ children }) {
         {/* ── Contenido ─────────────────────────────────── */}
         <main id="main-content" tabIndex={-1}
               className="flex-1 min-w-0 overflow-y-auto overscroll-contain
-                         pb-[env(safe-area-inset-bottom)] focus:outline-none">
+                         pb-[calc(5rem+env(safe-area-inset-bottom))] focus:outline-none">
           {children}
         </main>
+        {/* El padding inferior de main evita que este botón tape el final de la página */}
+        {location.pathname !== '/respond' && (
+          <Link to="/respond"
+                className="fixed z-30 right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))]
+                           inline-flex items-center gap-2 h-12 px-4 rounded-full bg-red-solid
+                           text-white text-body font-semibold shadow-16 hover:opacity-90
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <Siren className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+            ¿Caíste en un phishing?
+          </Link>
+        )}
       </div>
     </div>
   )

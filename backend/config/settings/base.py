@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.ml_feedback",
     "apps.payment_shield",
     "apps.four_eyes",
+    "apps.response",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -193,6 +194,7 @@ SPECTACULAR_SETTINGS = {
         "FeedbackStatusEnum":      "apps.ml_feedback.models.TrainingFeedback.Status",
         "PaymentCheckStatusEnum":  "apps.payment_shield.models.PaymentCheck.Status",
         "ApprovalStatusEnum":      "apps.four_eyes.models.ApprovalRequest.Status",
+        "ResponseSessionStatusEnum": "apps.response.models.ResponseSession.Status",
     },
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "TAGS": [
@@ -206,6 +208,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "audit",        "description": "Log de auditoría (solo admin)"},
         {"name": "Escudo de pagos", "description": "Proveedores de confianza y validación de pagos y facturas DIAN"},
         {"name": "Cuatro ojos", "description": "Aprobación de una segunda persona para correos de alto riesgo"},
+        {"name": "Respuesta a incidentes", "description": "Asistente de los primeros 15 minutos y paquete de denuncia"},
     ],
 }
 
@@ -288,6 +291,10 @@ PAYMENT_SHIELD_EXTRA_BANKS       = config("PAYMENT_SHIELD_EXTRA_BANKS", default=
 # La política se edita desde la interfaz; esto solo fija los valores iniciales.
 FOUR_EYES_DEFAULT_EXPIRY_MINUTES = config("FOUR_EYES_DEFAULT_EXPIRY_MINUTES", default=240, cast=int)
 FOUR_EYES_EXPIRY_CHECK_MINUTES   = config("FOUR_EYES_EXPIRY_CHECK_MINUTES", default=5, cast=int)
+
+# ── Respuesta a incidentes ────────────────────────────────
+# Enlace que se muestra para denunciar. Sentryx no envía nada automáticamente.
+CAI_VIRTUAL_URL = config("CAI_VIRTUAL_URL", default="")
 
 # ── Estáticos ─────────────────────────────────────────────
 STATIC_URL  = "/static/"

@@ -16,15 +16,20 @@ class IncidentTimelineSerializer(serializers.ModelSerializer):
 class IncidentListSerializer(serializers.ModelSerializer):
     alert_count      = serializers.SerializerMethodField()
     assigned_to_name = serializers.CharField(source="assigned_to.username", default=None)
+    guided_response  = serializers.SerializerMethodField()
 
     class Meta:
         model  = Incident
         fields = ["id", "title", "severity", "status", "mitre_technique",
-                    "alert_count", "assigned_to_name", "created_at", "updated_at"]
+                    "alert_count", "assigned_to_name", "guided_response",
+                    "created_at", "updated_at"]
         read_only_fields = fields
 
     def get_alert_count(self, obj) -> int:
         return obj.alerts.count()
+
+    def get_guided_response(self, obj) -> bool:
+        return bool(obj.response_sessions.all())
 
 
 class IncidentDetailSerializer(serializers.ModelSerializer):

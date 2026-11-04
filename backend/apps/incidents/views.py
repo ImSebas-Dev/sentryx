@@ -41,8 +41,8 @@ class IncidentListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Incident.objects.none()
-        return incident_queryset(self.request.user).prefetch_related("alerts") \
-            .order_by("-created_at")
+        return incident_queryset(self.request.user) \
+            .prefetch_related("alerts", "response_sessions").order_by("-created_at")
 
     def get_serializer_class(self):
         return IncidentCreateSerializer if self.request.method == "POST" \
