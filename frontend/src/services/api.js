@@ -136,6 +136,18 @@ export const paymentShieldAPI = {
   verifyCheck:    (id, data) => api.post(`/payment-shield/checks/${id}/verify/`, data),
 }
 
+export const fourEyesAPI = {
+  policy:       ()         => api.get('/four-eyes/policy/'),
+  updatePolicy: (data)     => api.put('/four-eyes/policy/', data),
+  stats:        ()         => api.get('/four-eyes/stats/'),
+  requests:     (params)   => api.get('/four-eyes/requests/', { params }),
+  detail:       (id)       => api.get(`/four-eyes/requests/${id}/`),
+  create:       (data)     => api.post('/four-eyes/requests/', data),
+  approve:      (id, data) => api.post(`/four-eyes/requests/${id}/approve/`, data),
+  reject:       (id, data) => api.post(`/four-eyes/requests/${id}/reject/`, data),
+  cancel:       (id)       => api.post(`/four-eyes/requests/${id}/cancel/`),
+}
+
 export const auditAPI = {
   list: (params) => api.get('/audit/', { params }),
 }

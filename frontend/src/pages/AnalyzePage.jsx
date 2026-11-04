@@ -17,6 +17,7 @@ import {
   PageHeader, Section, tone, scoreTone,
 } from '../components/UI'
 import PaymentShieldPanel from '../components/PaymentShieldPanel'
+import FourEyesPanel from '../components/FourEyesPanel'
 
 const EMPTY_FORM = { from: '', to: '', subject: '', auth: '', body: '' }
 
@@ -42,6 +43,8 @@ function resultLabel(score) {
 function AnalysisResult({ result }) {
   if (!result) return null
   const score = result.risk_score
+  // Una regla de negocio exigió la alerta aunque el modelo dio un score bajo
+  const forced = result.alert_created && result.classification === 'legitimate'
   const t     = tone(scoreTone(score))
 
   return (
@@ -53,10 +56,17 @@ function AnalysisResult({ result }) {
         <div className="flex flex-col sm:flex-row items-center gap-5">
           <ScoreGauge score={score} size={120} />
           <div className="text-center sm:text-left space-y-2">
-            <p className={clsx('text-subtitle font-semibold', t.text)}>{resultLabel(score)}</p>
+            <p className={clsx('text-subtitle font-semibold', forced ? 'text-orange-fg' : t.text)}>
+              {forced ? 'Requiere revisión' : resultLabel(score)}
+            </p>
+            {forced && (
+              <p className="text-caption text-fg-3 max-w-xs">
+                El modelo dio un score bajo, pero las reglas de Sentryx encontraron un riesgo.
+              </p>
+            )}
             <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
               {/* En un correo legítimo el título ya lo dice y no hay técnica de ataque */}
-              {result.classification !== 'legitimate' && <>
+              {(result.classification !== 'legitimate' || forced) && <>
                 <TypeBadge type={result.phishing_type} />
                 <MitreBadge technique={result.mitre_technique} />
               </>}
@@ -292,6 +302,10 @@ export default function AnalyzePage() {
           )}
 
           {result && <AnalysisResult result={result} />}
+
+          {result?.four_eyes_required && (
+            <FourEyesPanel alertId={result.alert_id} reasons={result.four_eyes_reasons} />
+          )}
 
           {result?.payment_shield && (
             <PaymentShieldPanel key={result.payment_shield.check_id}

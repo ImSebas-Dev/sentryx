@@ -72,6 +72,8 @@ class RiskLayers:
 
     def apply(self, alert) -> dict:
         """Persiste lo evaluado y devuelve los campos extra de la respuesta del análisis."""
+        self.response["four_eyes_required"] = False
+        self.response["four_eyes_reasons"] = []
         check = None
         try:
             if self.shield and self.shield.should_persist:
@@ -86,6 +88,22 @@ class RiskLayers:
             if check is not None and check.is_risky:
                 elevate_severity(alert, Alert.Severity.HIGH, "payment_shield",
                                  payment_shield.VERDICT_MESSAGES[check.verdict])
+            # Evalúa después de elevar la severidad: la política depende de ella
+            self._apply_four_eyes(alert, check)
             alert.save(update_fields=["risk_signals", "severity"])
             self.response["severity"] = alert.severity
         return self.response
+
+    def _apply_four_eyes(self, alert, check):
+        from apps.four_eyes import services as four_eyes
+        try:
+            reasons = four_eyes.evaluate_policy(
+                alert, self.organization, check, self.email_payload,
+                self.attachments, self.attachment_names)
+        except Exception:
+            logger.exception("[RiskLayers] Falló la evaluación de cuatro ojos")
+            return
+        if reasons:
+            alert.risk_signals["four_eyes"] = {"required": True, "reasons": reasons}
+            self.response["four_eyes_required"] = True
+            self.response["four_eyes_reasons"] = reasons

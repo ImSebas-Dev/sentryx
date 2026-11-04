@@ -14,6 +14,7 @@ import {
   tone, scoreTone,
 } from '../components/UI'
 import PaymentShieldPanel from '../components/PaymentShieldPanel'
+import FourEyesPanel from '../components/FourEyesPanel'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -133,6 +134,10 @@ export default function AlertDetailPage() {
               {adj.reason} El score del modelo no cambió.
             </MessageBar>
           ))}
+
+          {signals.four_eyes?.required && (
+            <FourEyesPanel alertId={alert.id} reasons={signals.four_eyes.reasons} />
+          )}
 
           {signals.payment_shield && <PaymentShieldPanel shield={signals.payment_shield} />}
 

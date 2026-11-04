@@ -84,6 +84,18 @@ La extensión envía solo los nombres de los adjuntos, nunca su contenido. Los s
 del DOM de Gmail y Outlook cambian con el tiempo: revísalos en `content.js` si el banner
 no encuentra el correo.
 
+## Control de cuatro ojos
+
+Si el análisis devuelve `four_eyes_required`, la extensión cubre el cuerpo del correo,
+quita los enlaces y oculta las descargas de adjuntos. **Pedir aprobación** crea la solicitud
+y la extensión consulta el estado cada 20 segundos, con espera creciente si hay errores, hasta
+que cierras el correo. Si aprueban, restaura el correo; si rechazan, lo mantiene bloqueado y
+ofrece **¿Ya hiciste clic?**; si vence, permite pedirla de nuevo.
+
+**Limitación:** el control es preventivo en la extensión y la web. No hay un botón para
+saltarse el bloqueo, pero la extensión no puede impedir que el correo se abra en otro cliente
+(celular, Outlook de escritorio) ni en un navegador sin la extensión.
+
 ## Cambios en la versión 1.3.0
 
 - Banner del Escudo de pagos sobre el correo y envío de los nombres de los adjuntos.

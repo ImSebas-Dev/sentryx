@@ -39,6 +39,7 @@ LOCAL_APPS = [
     "apps.audit",
     "apps.ml_feedback",
     "apps.payment_shield",
+    "apps.four_eyes",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -152,6 +153,8 @@ REST_FRAMEWORK = {
         "user": config("THROTTLE_USER_RATE", default="1000/hour"),
         # Endpoints de 2FA: se cuenta por IP (anónimos) o por usuario
         "mfa":  config("THROTTLE_MFA_RATE",  default="10/min"),
+        # Polling de la extensión: un correo abierto consulta cada 20 s (180/hora)
+        "four_eyes_status": config("THROTTLE_FOUR_EYES_STATUS_RATE", default="360/hour"),
     },
     # nginx añade la IP del cliente al final de X-Forwarded-For; con 1 proxy
     # DRF usa esa entrada (no falsificable) en lugar de la IP de nginx.
@@ -188,6 +191,8 @@ SPECTACULAR_SETTINGS = {
         "IncidentStatusEnum":      "apps.incidents.models.Incident.Status",
         "RetrainingJobStatusEnum": "apps.ml_feedback.models.RetrainingJob.Status",
         "FeedbackStatusEnum":      "apps.ml_feedback.models.TrainingFeedback.Status",
+        "PaymentCheckStatusEnum":  "apps.payment_shield.models.PaymentCheck.Status",
+        "ApprovalStatusEnum":      "apps.four_eyes.models.ApprovalRequest.Status",
     },
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "TAGS": [
@@ -200,6 +205,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "ml",           "description": "Reentrenamiento del modelo"},
         {"name": "audit",        "description": "Log de auditoría (solo admin)"},
         {"name": "Escudo de pagos", "description": "Proveedores de confianza y validación de pagos y facturas DIAN"},
+        {"name": "Cuatro ojos", "description": "Aprobación de una segunda persona para correos de alto riesgo"},
     ],
 }
 
@@ -277,6 +283,11 @@ VIRUSTOTAL_RATE_LIMIT= config("VIRUSTOTAL_RATE_LIMIT_PER_MIN", default=4, cast=i
 PAYMENT_SHIELD_SECRET            = config("PAYMENT_SHIELD_SECRET", default="")
 PAYMENT_SHIELD_MAX_ATTACHMENT_MB = config("PAYMENT_SHIELD_MAX_ATTACHMENT_MB", default=5, cast=int)
 PAYMENT_SHIELD_EXTRA_BANKS       = config("PAYMENT_SHIELD_EXTRA_BANKS", default="", cast=Csv())
+
+# ── Control de cuatro ojos ────────────────────────────────
+# La política se edita desde la interfaz; esto solo fija los valores iniciales.
+FOUR_EYES_DEFAULT_EXPIRY_MINUTES = config("FOUR_EYES_DEFAULT_EXPIRY_MINUTES", default=240, cast=int)
+FOUR_EYES_EXPIRY_CHECK_MINUTES   = config("FOUR_EYES_EXPIRY_CHECK_MINUTES", default=5, cast=int)
 
 # ── Estáticos ─────────────────────────────────────────────
 STATIC_URL  = "/static/"

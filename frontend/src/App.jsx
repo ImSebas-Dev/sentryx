@@ -16,6 +16,8 @@ import ReportsPage from './pages/ReportsPage'
 import SecurityPage from './pages/SecurityPage'
 import { TermsPage, PrivacyPage, AccessibilityPage } from './pages/LegalPages'
 import SuppliersPage from './pages/SuppliersPage'
+import ApprovalsPage from './pages/ApprovalsPage'
+import FourEyesPolicyPage from './pages/FourEyesPolicyPage'
 
 // Guard — redirige al login si no hay sesión
 function RequireAuth({ children }) {
@@ -54,6 +56,9 @@ function AppRoutes() {
               <Route path="pending-users"       element={<PendingUsersPage />} />
               <Route path="security"            element={<SecurityPage />} />
               <Route path="suppliers"           element={<SuppliersPage />} />
+              <Route path="approvals"           element={<ApprovalsPage />} />
+              <Route path="approvals/:id"       element={<ApprovalsPage />} />
+              <Route path="four-eyes-policy"    element={<FourEyesPolicyPage />} />
               <Route path="*"                   element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

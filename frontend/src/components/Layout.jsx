@@ -9,10 +9,12 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import {
   ShieldCheck, Bell, FolderOpen, Globe2, FileSearch, LogOut,
-  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2,
+  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
+import { fourEyesAPI } from '../services/api'
+import { usePolling } from '../hooks/useFetch'
 
 const ROLE_LABELS = { admin: 'Administrador', analyst: 'Analista', viewer: 'Solo lectura' }
 
@@ -23,6 +25,7 @@ const NAV_SECTIONS = [
       { to: '/',             label: 'Dashboard',       icon: LayoutDashboard },
       { to: '/alerts',       label: 'Alertas',         icon: Bell },
       { to: '/analyze',      label: 'Analizar correo', icon: FileSearch },
+      { to: '/approvals',    label: 'Aprobaciones',    icon: UserCheck, pendingBadge: true },
     ],
   },
   {
@@ -38,6 +41,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/reports',      label: 'Informes',        icon: FileText },
       { to: '/retraining',   label: 'Reentrenamiento', icon: Brain },
+      { to: '/four-eyes-policy', label: 'Política de cuatro ojos', icon: PolicyIcon, adminOnly: true },
     ],
   },
   {
@@ -48,7 +52,7 @@ const NAV_SECTIONS = [
   },
 ]
 
-function NavItem({ to, label, icon: Icon, onClick }) {
+function NavItem({ to, label, icon: Icon, badge, onClick }) {
   return (
     <NavLink
       to={to}
@@ -58,6 +62,10 @@ function NavItem({ to, label, icon: Icon, onClick }) {
     >
       <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.75} aria-hidden="true" />
       <span className="flex-1 truncate">{label}</span>
+      {badge > 0 && (
+        <span className="badge bg-red-solid text-white border-transparent tabular-nums"
+              aria-label={`${badge} pendientes`}>{badge}</span>
+      )}
     </NavLink>
   )
 }
@@ -74,7 +82,7 @@ function Avatar({ name, size = 'md' }) {
   )
 }
 
-function SidebarContent({ onNavClick }) {
+function SidebarContent({ onNavClick, pendingApprovals }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -102,7 +110,7 @@ function SidebarContent({ onNavClick }) {
             <div className="space-y-0.5">
               {section.items.map(item => (
                 <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon}
-                         badge={item.badge} onClick={onNavClick} />
+                         badge={item.pendingBadge ? pendingApprovals : 0} onClick={onNavClick} />
               ))}
             </div>
           </div>
@@ -141,6 +149,8 @@ export default function Layout({ children }) {
   const location   = useLocation()
   const drawerRef  = useRef(null)
   const menuBtnRef = useRef(null)
+  const { data: fourEyes } = usePolling(() => fourEyesAPI.stats(), 60000)
+  const pendingApprovals = fourEyes?.pending_to_approve || 0
 
   // Cerrar el panel al cambiar de ruta
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
@@ -178,12 +188,19 @@ export default function Layout({ children }) {
         <button
           ref={menuBtnRef}
           onClick={() => setDrawerOpen(true)}
-          className="btn-ghost btn-icon lg:hidden"
-          aria-label="Abrir menú de navegación"
+          className="btn-ghost btn-icon lg:hidden relative"
+          aria-label={pendingApprovals
+            ? `Abrir menú de navegación, ${pendingApprovals} aprobaciones pendientes`
+            : 'Abrir menú de navegación'}
           aria-expanded={drawerOpen}
           aria-controls="mobile-drawer"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
+          {pendingApprovals > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-solid
+                             text-white text-caption2 font-semibold flex items-center justify-center"
+                  aria-hidden="true">{pendingApprovals}</span>
+          )}
         </button>
 
         <Link to="/" className="flex items-center gap-2.5 px-1.5 py-1 rounded-md min-w-0"
@@ -209,7 +226,7 @@ export default function Layout({ children }) {
       <div className="flex flex-1 min-h-0">
         {/* ── Panel de navegación (≥ lg) ────────────────── */}
         <aside className="hidden lg:flex w-60 flex-shrink-0 bg-nav border-r border-stroke flex-col">
-          {!drawerOpen && <SidebarContent />}
+          {!drawerOpen && <SidebarContent pendingApprovals={pendingApprovals} />}
         </aside>
 
         {/* ── Panel modal (< lg) ────────────────────────── */}
@@ -235,7 +252,7 @@ export default function Layout({ children }) {
                 </button>
               </div>
               <div className="flex-1 min-h-0">
-                <SidebarContent onNavClick={() => setDrawerOpen(false)} />
+                <SidebarContent onNavClick={() => setDrawerOpen(false)} pendingApprovals={pendingApprovals} />
               </div>
             </div>
           </>

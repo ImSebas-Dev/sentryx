@@ -43,6 +43,24 @@ def _send(to_email: str, subject: str, html_body: str, text_body: str = "") -> b
         return False
 
 
+def send_notification(to_email: str, subject: str, html_body: str, text_body: str = "") -> bool:
+    """
+    Aviso interno de las funciones de seguridad. Sin SENDGRID_API_KEY solo deja el
+    registro en el log, para que ninguna función dependa de tener correo configurado.
+    Nunca pongas en el cuerpo el contenido del correo sospechoso.
+    """
+    if not settings.SENDGRID_API_KEY:
+        logger.info(f"[Email] Sin SENDGRID_API_KEY; aviso no enviado a {to_email}: {subject}")
+        return False
+    wrapped = (
+        '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;'
+        'background:#0f1117;color:#e5e7eb;padding:32px;border-radius:12px">'
+        '<div style="font-size:22px;font-weight:800;color:#60a5fa;margin-bottom:16px">'
+        f"🛡 Sentryx</div>{html_body}</div>"
+    )
+    return _send(to_email, subject, wrapped, text_body)
+
+
 def _base_url() -> str:
     return getattr(settings, "FRONTEND_URL", "http://localhost")
 

@@ -8,7 +8,7 @@ import {
   Target, Layers, FileSearch, ChevronRight,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { alertsAPI } from '../services/api'
+import { alertsAPI, fourEyesAPI } from '../services/api'
 import { useFetch, usePolling } from '../hooks/useFetch'
 import { useTheme } from '../store/ThemeContext'
 import {
@@ -46,6 +46,7 @@ export default function DashboardPage() {
     usePolling(() => alertsAPI.stats(), 30000)
   const { data: alertsData } =
     useFetch(() => alertsAPI.list({ page_size: 5, ordering: '-detected_at' }))
+  const { data: fourEyes } = useFetch(() => fourEyesAPI.stats())
 
   if (loading) return <LoadingScreen />
 
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const typeTotal = byType.reduce((acc, t) => acc + t.value, 0) || 1
 
   const recent = alertsData?.results || []
+  const avgDecision = fourEyes?.avg_decision_minutes
 
   return (
     <div className="page">
@@ -158,6 +160,26 @@ export default function DashboardPage() {
           )}
         </Section>
       </div>
+
+      {/* Evidencia de uso del control de cuatro ojos */}
+      {fourEyes && (
+        <Section title="Control de cuatro ojos este mes"
+                 description="Correos de alto riesgo revisados por una segunda persona">
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="four-eyes-stats">
+            {[
+              ['Solicitudes', fourEyes.month_total],
+              ['Aprobadas', fourEyes.approved],
+              ['Rechazadas', fourEyes.rejected],
+              ['Tiempo promedio', avgDecision != null ? `${avgDecision} min` : '—'],
+            ].map(([label, value]) => (
+              <div key={label} className="well p-3.5">
+                <dt className="text-caption font-semibold text-fg-2">{label}</dt>
+                <dd className="text-title3 font-semibold text-fg tabular-nums mt-1">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
 
       {/* Severidad */}
       <Section title="Distribución por severidad">

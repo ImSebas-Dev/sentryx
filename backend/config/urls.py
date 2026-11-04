@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/v1/audit/",        include("apps.audit.urls")),
     path("api/v1/ml/",           include("apps.ml_feedback.urls")),
     path("api/v1/payment-shield/", include("apps.payment_shield.urls")),
+    path("api/v1/four-eyes/",    include("apps.four_eyes.urls")),
     # OpenAPI: permisos según SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"]
     path("api/v1/schema/",       SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs/",         SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

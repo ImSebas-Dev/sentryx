@@ -1,5 +1,5 @@
 /**
- * Sentryx Extension — Banner de riesgo sobre el correo.
+ * Sentryx Extension — Banner de riesgo y capa de bloqueo sobre el correo.
  *
  * Recibe el resultado del análisis desde el popup (mensaje SHOW_RISK).
  * Dibuja dentro de un Shadow DOM para no heredar ni alterar los estilos de
@@ -11,8 +11,12 @@ if (!window.__sentryxOverlayLoaded) {
 
   const HOST_ID   = 'sentryx-risk-host';
   const HREF_ATTR = 'data-sentryx-href';
+  const POLL_MS     = 20000;
+  const POLL_MAX_MS = 300000;
 
   let current = null; // { body, host, shadow }
+  let pollTimer = null;
+  let hiddenAreas = [];
 
   function send(message) {
     return new Promise(resolve => {
@@ -77,10 +81,45 @@ if (!window.__sentryxOverlayLoaded) {
     return node;
   }
 
+  function stopPolling() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+
   function clear() {
+    stopPolling();
     if (!current) return;
     current.host.remove();
     current = null;
+  }
+
+  // ── Bloqueo del cuerpo y de los adjuntos ────────────────
+  function hideAttachments() {
+    const selectors = window.__sentryxDom?.attachmentAreas() || [];
+    selectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(area => {
+        if (area.style.display === 'none') return;
+        area.style.display = 'none';
+        hiddenAreas.push(area);
+      });
+    });
+  }
+
+  function lockEmail(body) {
+    disableLinks(body);
+    hideAttachments();
+    body.style.visibility = 'hidden';
+    body.style.maxHeight = '0';
+    body.style.overflow = 'hidden';
+  }
+
+  function unlockEmail(body) {
+    restoreLinks(body);
+    body.style.visibility = '';
+    body.style.maxHeight = '';
+    body.style.overflow = '';
+    hiddenAreas.forEach(area => { area.style.display = ''; });
+    hiddenAreas = [];
   }
 
   function mount(body) {
@@ -130,11 +169,103 @@ if (!window.__sentryxOverlayLoaded) {
     ));
   }
 
+  // ── Capa de bloqueo de cuatro ojos ──────────────────────
+  // No agregues aquí un botón para saltarse el bloqueo: la decisión es de la
+  // segunda persona. Ver la limitación en extension/README.md.
+  function reasonList(reasons) {
+    return el('ul', {}, (reasons || []).map(r => el('li', {}, r.detail || '')));
+  }
+
+  function renderRequestForm(state) {
+    const note = el('textarea', { rows: '2', maxlength: '1000',
+                                  placeholder: 'Nota para quien aprueba (opcional)',
+                                  'aria-label': 'Nota para quien aprueba' });
+    const status = el('p', { role: 'status' });
+    const button = el('button', { onClick: async () => {
+      button.disabled = true;
+      const res = await send({ type: 'CREATE_APPROVAL', alertId: state.alertId, note: note.value });
+      if (res.success) {
+        renderRequest(state, res.data);
+      } else {
+        button.disabled = false;
+        status.textContent = res.error || 'No se pudo pedir la aprobación.';
+      }
+    } }, 'Pedir aprobación');
+    render(el('div', { className: 'box', role: 'alert' },
+      el('h2', {}, 'Este correo está bloqueado hasta que otra persona lo apruebe'),
+      reasonList(state.reasons), note, status, button));
+  }
+
+  function renderRequest(state, request) {
+    const status = request.status === 'pending' || request.effective_status === 'pending'
+      ? 'pending' : (request.effective_status || request.status);
+    stopPolling();
+    if (status === 'pending') {
+      render(el('div', { className: 'box warn', role: 'status' },
+        el('h2', {}, 'Esperando la aprobación de una segunda persona'),
+        reasonList(state.reasons),
+        el('p', {}, 'Puedes seguir trabajando; este aviso se actualiza solo.')));
+      schedulePoll(state, request.id, POLL_MS);
+    } else if (status === 'approved') {
+      unlockEmail(state.body);
+      render(el('div', { className: 'box ok', role: 'status' },
+        el('h2', {}, 'Correo aprobado'),
+        el('p', {}, `Lo aprobó ${request.decided_by_name || 'una segunda persona'}.`),
+        el('button', { className: 'ghost', onClick: clear }, 'Cerrar')));
+    } else if (status === 'rejected') {
+      const guided = `${state.frontendUrl}/respond?alert=${encodeURIComponent(state.alertId)}`;
+      render(el('div', { className: 'box', role: 'alert' },
+        el('h2', {}, 'La aprobación fue rechazada: no continúes'),
+        request.decision_note ? el('p', {}, `Nota: ${request.decision_note}`) : '',
+        el('button', { onClick: () => window.open(guided, '_blank', 'noopener') },
+           '¿Ya hiciste clic?')));
+    } else {
+      // Vencida o cancelada: el correo sigue bloqueado y se puede pedir de nuevo
+      renderRequestForm(state);
+    }
+  }
+
+  // Consulta el estado cada 20 s; si falla, espera el doble hasta 5 minutos.
+  // Detente cuando el correo ya no esté en pantalla.
+  function schedulePoll(state, requestId, delay) {
+    pollTimer = setTimeout(async () => {
+      if (!state.body.isConnected || !current) {
+        clear();
+        return;
+      }
+      if (document.hidden) {
+        schedulePoll(state, requestId, delay);
+        return;
+      }
+      const res = await send({ type: 'APPROVAL_STATUS', requestId });
+      if (!current) return;
+      if (res.success) renderRequest(state, res.data);
+      else schedulePoll(state, requestId, Math.min(delay * 2, POLL_MAX_MS));
+    }, delay);
+  }
+
+  async function showFourEyesLock(body, result) {
+    mount(body);
+    lockEmail(body);
+    const state = { body, alertId: result.alert_id, reasons: result.four_eyes_reasons,
+                    frontendUrl: result.frontend_url || '' };
+    const existing = await send({ type: 'FIND_APPROVAL', alertId: result.alert_id });
+    if (existing.success && existing.data) renderRequest(state, existing.data);
+    else renderRequestForm(state);
+  }
+
+  window.addEventListener('hashchange', () => {
+    if (current && !current.body.isConnected) clear();
+  });
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type !== 'SHOW_RISK') return false;
     const body = window.__sentryxDom?.currentBodyElement();
     const { result } = message;
-    if (body?.parentElement && result?.payment_shield?.risky && result.payment_shield.check_id) {
+    // La capa de cuatro ojos reemplaza al banner: no hay "Entiendo el riesgo" en ella
+    if (body?.parentElement && result?.four_eyes_required && result.alert_id) {
+      showFourEyesLock(body, result);
+    } else if (body?.parentElement && result?.payment_shield?.risky && result.payment_shield.check_id) {
       showPaymentBanner(body, result.payment_shield);
     }
     sendResponse({ success: !!body });

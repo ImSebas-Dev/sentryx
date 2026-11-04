@@ -300,6 +300,30 @@ const handlers = {
     return { success: true };
   },
 
+  // ── Control de cuatro ojos ─────────────────────────────
+  async CREATE_APPROVAL(message) {
+    const data = await authedFetch('/four-eyes/requests/', {
+      method: 'POST',
+      body: JSON.stringify({ alert_id: message.alertId, note: message.note || '' }),
+    });
+    return { success: true, data };
+  },
+
+  async APPROVAL_STATUS(message) {
+    try {
+      const data = await authedFetch(`/four-eyes/requests/${encodeURIComponent(message.requestId)}/status/`);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: err.message, status: err.status };
+    }
+  },
+
+  async FIND_APPROVAL(message) {
+    const params = new URLSearchParams({ alert: message.alertId, mine: 'true' });
+    const data = await authedFetch(`/four-eyes/requests/?${params}`);
+    return { success: true, data: data[0] || null };
+  },
+
   // ── Guardar configuración y verificar conexión ─────────
   async SAVE_CONFIG(message) {
     const backendUrl = normalizeBackendUrl(message.config.backendUrl);

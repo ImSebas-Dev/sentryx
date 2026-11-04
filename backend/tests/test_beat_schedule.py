@@ -12,6 +12,7 @@ EXPECTED = {
     "sync_phishtank":  "threat_intel.sync_phishtank",
     "sync_openphish":  "threat_intel.sync_openphish",
     "monthly_retrain": "ml_feedback.monthly_retrain",
+    "four_eyes_expire_requests": "four_eyes.expire_requests",
 }
 
 

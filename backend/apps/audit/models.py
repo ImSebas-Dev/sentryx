@@ -27,6 +27,15 @@ class AuditLog(models.Model):
         SUPPLIER_DELETED = "SUPPLIER_DELETED", "Proveedor eliminado"
         PAYMENT_VERIFIED = "PAYMENT_VERIFIED", "Verificación de pago registrada"
         PAYMENT_RISK_ACK = "PAYMENT_RISK_ACK", "Usuario aceptó el riesgo de un pago"
+        # Control de cuatro ojos
+        FOUR_EYES_REQUESTED = "FOUR_EYES_REQUESTED", "Aprobación solicitada"
+        FOUR_EYES_APPROVED  = "FOUR_EYES_APPROVED",  "Solicitud aprobada"
+        FOUR_EYES_REJECTED  = "FOUR_EYES_REJECTED",  "Solicitud rechazada"
+        FOUR_EYES_EXPIRED   = "FOUR_EYES_EXPIRED",   "Solicitud vencida"
+        FOUR_EYES_CANCELLED = "FOUR_EYES_CANCELLED", "Solicitud cancelada"
+        FOUR_EYES_POLICY_CHANGED = "FOUR_EYES_POLICY_CHANGED", "Política de cuatro ojos modificada"
+        # Intentos rechazados: autoaprobación, otra organización, TOTP inválido...
+        FOUR_EYES_DENIED    = "FOUR_EYES_DENIED",    "Intento rechazado en cuatro ojos"
 
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     action      = models.CharField(max_length=40, choices=Action.choices)

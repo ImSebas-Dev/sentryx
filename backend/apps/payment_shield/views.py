@@ -137,6 +137,14 @@ class PaymentCheckVerifyView(APIView):
             return Response({"error": "Esta verificación ya está cerrada."},
                             status=status.HTTP_409_CONFLICT)
 
+        # Importa aquí: four_eyes depende de los modelos de esta app
+        from apps.four_eyes import services as four_eyes
+        if result == PaymentCheck.Status.APPROVED and not four_eyes.approval_gate_open(check):
+            return Response(
+                {"error": "Para aprobar este pago hace falta la aprobación de una segunda persona.",
+                 "code": "four_eyes_required"},
+                status=status.HTTP_409_CONFLICT)
+
         check.status = result
         check.verified_by = request.user
         check.verified_at = timezone.now()
@@ -162,6 +170,12 @@ class PaymentRiskAcknowledgeView(APIView):
     )
     def post(self, request, pk):
         check = generics.get_object_or_404(visible_checks(request.user), pk=pk)
+        from apps.four_eyes import services as four_eyes
+        if four_eyes.blocks_risk_acknowledgement(check):
+            return Response(
+                {"error": "Este correo requiere la aprobación de una segunda persona.",
+                 "code": "four_eyes_required"},
+                status=status.HTTP_409_CONFLICT)
         AuditLog.log(action=AuditLog.Action.PAYMENT_RISK_ACK, resource="payment_shield.check",
                      resource_id=str(check.pk), user=request.user, ip=client_ip(request),
                      detail={"verdict": check.verdict})

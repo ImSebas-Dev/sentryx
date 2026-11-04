@@ -49,6 +49,13 @@ def periodic_tasks(settings):
             "description": "Reentrenamiento mensual (día 1, 03:00) si hay al menos "
                            f"{settings.ML_RETRAIN_MIN_SAMPLES} correcciones pendientes.",
         },
+        {
+            "name": "four_eyes_expire_requests",
+            "task": "four_eyes.expire_requests",
+            "queue": "default",
+            "interval_minutes": settings.FOUR_EYES_EXPIRY_CHECK_MINUTES,
+            "description": "Vence las solicitudes de cuatro ojos sin decidir y escala a los admins.",
+        },
     ]
 
 
@@ -74,8 +81,10 @@ def register_periodic_tasks(settings, PeriodicTask, IntervalSchedule,
                 timezone=TIMEZONE, **cron,
             )
         else:
+            every, period = ((spec["interval_minutes"], "minutes") if "interval_minutes" in spec
+                             else (spec["interval_hours"], "hours"))
             defaults["interval"], _ = IntervalSchedule.objects.get_or_create(
-                every=spec["interval_hours"], period="hours",
+                every=every, period=period,
             )
         PeriodicTask.objects.update_or_create(name=spec["name"], defaults=defaults)
         names.append(spec["name"])
