@@ -8,9 +8,10 @@ resultados.json y calcula las métricas en metricas.json.
 
 Uso (dentro de la red de Docker, desde el contenedor backend):
     docker cp docs/pruebas sentryx_backend:/tmp/pruebas
-    docker compose exec backend python /tmp/pruebas/ejecutar_prueba.py
+    docker compose exec -e SENTRYX_TEST_PASSWORD=... backend python /tmp/pruebas/ejecutar_prueba.py
 """
 import json
+import os
 import statistics
 import sys
 import time
@@ -25,7 +26,8 @@ from corpus_phishing import PHISHING    # noqa: E402
 
 API = "http://nginx/api/v1"
 HOST = {"Host": "localhost"}          # ALLOWED_HOSTS del backend
-USER = {"email": "prueba.sistema@sentryx.local", "password": "PruebaSistema2026"}
+# La contraseña llega por variable de entorno: no la escribas en el código
+USER = {"email": "prueba.sistema@sentryx.local", "password": os.environ["SENTRYX_TEST_PASSWORD"]}
 
 
 def received(hops):

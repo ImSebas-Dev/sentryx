@@ -9,7 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
-RUN useradd --no-create-home --shell /bin/false appuser \
+# staticfiles debe existir en la imagen con dueño appuser: Docker inicializa el
+# volumen static_files con este directorio (si no, queda de root y collectstatic falla)
+RUN mkdir -p /app/staticfiles \
+    && useradd --no-create-home --shell /bin/false appuser \
     && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8000

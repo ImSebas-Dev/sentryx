@@ -18,7 +18,9 @@ setup: ## Setup inicial del entorno (primera vez)
 	bash scripts/dev/setup.sh
 
 up: ## Levantar todos los servicios en modo desarrollo
-	$(DC_DEV) up -d
+	# --renew-anon-volumes: el node_modules del frontend sale de la imagen recién
+	# construida; sin esto Docker conserva el anterior y Vite sirve dependencias viejas.
+	$(DC_DEV) up -d --build --renew-anon-volumes
 	@echo ""
 	@echo "  Dashboard  → http://localhost"
 	@echo "  API        → http://localhost/api/v1/"

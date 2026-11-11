@@ -26,7 +26,7 @@ script) para que las alertas no se mezclen con las de otros usuarios.
 ```bash
 docker cp docs/pruebas sentryx_backend:/tmp/
 docker compose exec -u root backend chown -R appuser /tmp/pruebas
-docker compose exec backend python /tmp/pruebas/ejecutar_prueba.py
+docker compose exec -e SENTRYX_TEST_PASSWORD='<contraseña del usuario de prueba>' backend python /tmp/pruebas/ejecutar_prueba.py
 docker compose exec -T backend sh -c "python manage.py shell < /tmp/pruebas/verificar_funcional.py"
 docker cp sentryx_backend:/tmp/pruebas/resultados.json docs/pruebas/
 docker cp sentryx_backend:/tmp/pruebas/metricas.json docs/pruebas/
