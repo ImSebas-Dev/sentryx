@@ -139,7 +139,7 @@ function StepsStep({ session, contacts, warning, caiUrl, onSession, onFinish }) 
   const step  = steps[index]
   const state = session.steps_state[step.id] || {}
 
-  useEffect(() => { setNote(session.steps_state[step.id]?.note || '') }, [step.id]) // eslint-disable-line
+  useEffect(() => { setNote(session.steps_state[step.id]?.note || '') }, [step.id]) // solo al cambiar de paso, no en cada respuesta
 
   const save = async done => {
     setSaving(true)

@@ -2,7 +2,9 @@ FROM python:3.11-slim
 LABEL project="Sentryx" service="backend"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev gcc curl \
+# Solo curl (healthcheck). Sin compiladores en la imagen: todas las
+# dependencias se instalan desde wheels precompilados.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt

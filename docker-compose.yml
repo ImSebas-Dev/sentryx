@@ -1,3 +1,13 @@
+# ══════════════════════════════════════════════════════════
+#  Sentryx v2 — Servicios base
+#
+#  Desarrollo:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up   (make up)
+#  Producción:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+#  Seguridad: solo nginx publica puertos. La base de datos, Redis, el backend y
+#  el motor ML solo son accesibles dentro de la red interna de Docker. No hay
+#  contraseñas por defecto: si falta una en .env, Compose se niega a arrancar.
+# ══════════════════════════════════════════════════════════
 services:
 
   # ── PostgreSQL ──────────────────────────────────────────────────
@@ -8,12 +18,12 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-sentryx}
       POSTGRES_USER: ${POSTGRES_USER:-sentryx}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentryx_dev_pwd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      # scram-sha-256 en lugar de md5 para las contraseñas de la base de datos
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentryx}"]
       interval: 10s
@@ -27,13 +37,15 @@ services:
     image: redis:7-alpine
     container_name: sentryx_redis
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD:-sentryx_redis_pwd}
+    # La contraseña llega por variable de entorno, no en la línea de comandos
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --protected-mode yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Define REDIS_PASSWORD en .env}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sentryx_redis_pwd}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,20 +62,18 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
               python manage.py collectstatic --noinput &&
-              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
+              --limit-request-line 8190 --limit-request-fields 100"
     env_file: .env
     volumes:
-      - ./backend:/app
       - static_files:/app/staticfiles
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -H \"Host: $${DJANGO_ALLOWED_HOSTS%%,*}\" http://localhost:8000/api/v1/health/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -83,11 +93,8 @@ services:
       # Script usado por POST /admin/retrain (reentrenamiento desde Celery)
       - ML_TRAIN_SCRIPT=/opt/sentryx/scripts/ml/train_models.py
     volumes:
-      - ./ml_engine:/app
       - ml_models:/app/models/trained
       - ./scripts/ml:/opt/sentryx/scripts/ml:ro
-    ports:
-      - "8001:8001"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
       interval: 30s
@@ -105,8 +112,6 @@ services:
     restart: always
     command: celery -A config worker --loglevel=info --concurrency=2 -Q default,threat_intel,alerts
     env_file: .env
-    volumes:
-      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
@@ -124,8 +129,6 @@ services:
     restart: always
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file: .env
-    volumes:
-      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
@@ -135,6 +138,8 @@ services:
       - sentryx_net
 
   # ── React Frontend ──────────────────────────────────────────────
+  # Base: servidor de Vite (desarrollo). docker-compose.prod.yml usa el build
+  # estático (target production) servido por nginx.
   frontend:
     build:
       context: ./frontend
@@ -142,14 +147,6 @@ services:
       target: development
     container_name: sentryx_frontend
     restart: always
-    environment:
-      - VITE_API_URL=http://localhost/api/v1
-      - VITE_ML_URL=http://localhost/ml
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "5173:5173"
     networks:
       - sentryx_net
 
@@ -162,7 +159,9 @@ services:
     environment:
       POSTGRES_DB: community_hub
       POSTGRES_USER: community_hub
-      POSTGRES_PASSWORD: ${COMMUNITY_DB_PASSWORD:-community_dev_pwd}
+      # Sin valor el contenedor no arranca (postgres rechaza la contraseña vacía)
+      POSTGRES_PASSWORD: ${COMMUNITY_DB_PASSWORD:-}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     volumes:
       - community_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -180,14 +179,15 @@ services:
     container_name: sentryx_community_hub
     profiles: ["hub"]
     restart: always
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8100
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8100 --proxy-headers
     environment:
-      COMMUNITY_HUB_DATABASE_URL: postgresql+psycopg2://community_hub:${COMMUNITY_DB_PASSWORD:-community_dev_pwd}@community_db:5432/community_hub
+      COMMUNITY_HUB_DATABASE_URL: postgresql+psycopg2://community_hub:${COMMUNITY_DB_PASSWORD}@community_db:5432/community_hub
       COMMUNITY_HUB_OPERATOR_KEY: ${COMMUNITY_HUB_OPERATOR_KEY:-}
       COMMUNITY_K_ANONYMITY: ${COMMUNITY_K_ANONYMITY:-2}
       COMMUNITY_DAILY_LIMIT: ${COMMUNITY_DAILY_LIMIT:-1000}
+    # Publicar el hub solo detrás de un proxy con HTTPS: los nodos envían su key
     ports:
-      - "8100:8100"
+      - "127.0.0.1:8100:8100"
     depends_on:
       community_db:
         condition: service_healthy
@@ -201,7 +201,7 @@ services:
 
   # ── Nginx Reverse Proxy ─────────────────────────────────────────
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:1.27-alpine
     container_name: sentryx_nginx
     restart: always
     ports:
@@ -211,7 +211,6 @@ services:
       - static_files:/var/www/static:ro
     depends_on:
       - backend
-      - ml_engine
       - frontend
     networks:
       - sentryx_net

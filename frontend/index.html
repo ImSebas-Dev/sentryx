@@ -9,21 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Sentryx — Detección de Phishing</title>
     <link rel="icon" type="image/svg+xml" href="/shield.svg" />
-    <script>
-      // Aplica el tema antes del primer pintado (evita el destello claro/oscuro).
-      // Debe coincidir con la lógica de src/store/ThemeContext.jsx.
-      (function () {
-        var mode = 'system'
-        try { mode = localStorage.getItem('sentryx-theme') || 'system' } catch (e) {}
-        var dark = mode === 'dark' ||
-          (mode === 'system' && window.matchMedia &&
-           window.matchMedia('(prefers-color-scheme: dark)').matches)
-        var theme = dark ? 'dark' : 'light'
-        document.documentElement.setAttribute('data-theme', theme)
-        var meta = document.querySelector('meta[name="theme-color"]')
-        if (meta) meta.setAttribute('content', dark ? '#141414' : '#fafafa')
-      })()
-    </script>
+    <meta name="referrer" content="same-origin" />
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

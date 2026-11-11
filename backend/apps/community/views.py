@@ -16,9 +16,7 @@ TAG = "Red de alerta"
 NO_ORG = {"error": "Tu usuario no tiene organización: pide que te la asignen."}
 
 
-def client_ip(request):
-    return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", ""))
+from apps.audit.utils import client_ip  # noqa: E402  (IP real detrás de nginx)
 
 
 def _audit(request, action, community, **detail):

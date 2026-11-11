@@ -10,18 +10,16 @@ Endpoints:
 """
 import logging
 from django.conf import settings
-from django.utils import timezone
-from rest_framework import status, permissions
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import generics, serializers
-from drf_spectacular.utils import (
-    extend_schema, inline_serializer, OpenApiExample, OpenApiParameter, OpenApiResponse,
-)
+from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 
 from apps.ml_feedback.models import TrainingFeedback, RetrainingJob
 from apps.users.permissions   import IsAnalystOrAbove, IsAdminUser
+from apps.audit.utils import client_ip
 from apps.audit.models        import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -117,8 +115,7 @@ class RetrainTriggerView(APIView):
         job.save(update_fields=["celery_task_id"])
 
         # Auditoría
-        ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-              or request.META.get("REMOTE_ADDR", ""))
+        ip = client_ip(request)
         AuditLog.log(
             action=AuditLog.Action.CONFIG_CHANGE,
             resource="ml_retrain",
@@ -208,49 +205,58 @@ class FeedbackStatsView(APIView):
         })
 
 
-@extend_schema(tags=["ml"], request=OpenApiTypes.OBJECT, responses={201: OpenApiTypes.OBJECT})
+class FeedbackCreateSerializer(serializers.Serializer):
+    """
+    Corrección manual. Validar todo: estas muestras entrenan el modelo que usan
+    TODAS las empresas, así que un dato basura envenena la detección de todos.
+    """
+    correction_type = serializers.ChoiceField(choices=TrainingFeedback.CorrectionType.choices)
+    correct_label   = serializers.IntegerField(min_value=0, max_value=1)
+    original_label  = serializers.IntegerField(min_value=0, max_value=1, default=1)
+    original_type   = serializers.CharField(max_length=10, required=False, default="unknown")
+    original_score  = serializers.FloatField(min_value=0, max_value=100, required=False, default=0)
+    correct_type    = serializers.CharField(max_length=10, required=False, allow_blank=True, default="")
+    sender_domain   = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    ml_features     = serializers.DictField(required=False, default=dict)
+    scores_by_layer = serializers.DictField(child=serializers.FloatField(min_value=0, max_value=100),
+                                            required=False, default=dict)
+    notes           = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
+    alert_id        = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate_ml_features(self, value):
+        import json
+        if len(json.dumps(value)) > 20_000:
+            raise serializers.ValidationError("ml_features es demasiado grande.")
+        return value
+
+
+@extend_schema(tags=["ml"], request=FeedbackCreateSerializer, responses={201: OpenApiTypes.OBJECT})
 class FeedbackCreateView(APIView):
     """
     POST /api/v1/ml/feedback/
-    Registrar una corrección manual (sin pasar por una alerta existente).
+    Registrar una corrección manual. Si se vincula una alerta, debe ser una
+    alerta visible para el usuario (propia o, para el admin, de su empresa).
     """
     permission_classes = [IsAnalystOrAbove]
 
     def post(self, request):
-        data = request.data
+        ser = FeedbackCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        data = dict(ser.validated_data)
+        alert_id = data.pop("alert_id", None)
 
-        required = ["correct_label", "correction_type"]
-        for field in required:
-            if field not in data:
-                return Response(
-                    {"error": f"Campo requerido: {field}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        feedback = TrainingFeedback.objects.create(
-            correction_type = data["correction_type"],
-            original_label  = data.get("original_label", 1),
-            original_type   = data.get("original_type", "unknown"),
-            original_score  = data.get("original_score", 0),
-            correct_label   = data["correct_label"],
-            correct_type    = data.get("correct_type", ""),
-            sender_domain   = data.get("sender_domain", ""),
-            ml_features     = data.get("ml_features", {}),
-            scores_by_layer = data.get("scores_by_layer", {}),
-            notes           = data.get("notes", ""),
-            reviewed_by     = request.user,
-        )
-
-        # Vincular alerta si se proporcionó
-        alert_id = data.get("alert_id")
+        alert = None
         if alert_id:
-            try:
-                from apps.alerts.models import Alert
-                alert = Alert.objects.get(pk=alert_id)
-                feedback.alert = alert
-                feedback.save(update_fields=["alert"])
-            except Exception:
-                pass
+            from apps.alerts.views import _alert_queryset
+            alert = _alert_queryset(request.user).filter(pk=alert_id).first()
+            if alert is None:
+                return Response({"alert_id": ["No se encontró la alerta."]},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        feedback = TrainingFeedback.objects.create(**data, alert=alert, reviewed_by=request.user)
+        AuditLog.log(action=AuditLog.Action.CREATE, resource="ml_feedback",
+                     resource_id=str(feedback.id), user=request.user, ip=client_ip(request),
+                     detail={"correction_type": feedback.correction_type})
 
         return Response(
             {"id": str(feedback.id), "message": "Corrección registrada."},

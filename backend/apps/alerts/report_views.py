@@ -14,7 +14,7 @@ Importante: el parámetro se llama 'export' y no 'format' porque DRF reserva
 '?format=' para su negociación de contenido y respondería 404.
 
 Aislamiento: se reutiliza _alert_queryset(), así que cada analista solo
-obtiene sus propias alertas y el admin obtiene las de todos.
+obtiene sus propias alertas y el admin las de su organización.
 """
 import logging
 
@@ -23,9 +23,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
-from drf_spectacular.utils import (
-    extend_schema, inline_serializer, OpenApiExample, OpenApiParameter, OpenApiResponse,
-)
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
 from apps.alerts import reports
@@ -72,9 +70,7 @@ def _parse_params(request):
     return period, offset, None
 
 
-def _client_ip(request):
-    return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", ""))
+from apps.audit.utils import client_ip as _client_ip
 
 
 PERIOD_PARAM = OpenApiParameter("period", str, enum=["weekly", "monthly"], default="weekly")

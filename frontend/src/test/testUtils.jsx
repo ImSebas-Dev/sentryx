@@ -6,7 +6,8 @@
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../store/AuthContext'
-import { vi } from 'vitest'
+import { tokenStore } from '../services/api'
+import { mockSession } from './mswServer'
 
 /**
  * Renderiza un componente con todos los providers necesarios.
@@ -31,15 +32,18 @@ export function renderWithProviders(ui, {
 }
 
 /**
- * Simula un usuario autenticado en localStorage antes del render.
- * El servidor MSW se encarga de responder /auth/me/ con el perfil.
+ * Simula una sesión abierta antes del render: access token en memoria y la
+ * cookie HttpOnly del refresh. MSW responde /auth/me/ con el perfil.
  */
 export function setAuthTokens() {
-  localStorage.setItem('access_token',  'test-access-token')
-  localStorage.setItem('refresh_token', 'test-refresh-token')
+  tokenStore.set('test-access-token')
+  mockSession.hasRefreshCookie = true
 }
 
+/** Simula un navegador sin sesión (sin access en memoria ni cookie). */
 export function clearAuthTokens() {
+  tokenStore.clear()
+  mockSession.hasRefreshCookie = false
   localStorage.clear()
 }
 

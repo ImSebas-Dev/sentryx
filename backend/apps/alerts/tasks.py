@@ -157,7 +157,6 @@ def purge_old_data_task():
     """
     from django.conf import settings
     from apps.alerts.models import Alert
-    from apps.audit.models  import AuditLog
 
     now             = timezone.now()
     deleted_alerts  = 0

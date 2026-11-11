@@ -1,6 +1,36 @@
 """Sentryx v2 — Serializers de alertas y análisis de correo."""
+import os
+
+from django.conf import settings
 from rest_framework import serializers
 from apps.alerts.models import Alert, PhishingCampaign
+from apps.users.organization import same_org
+
+# Límites del correo a analizar: un correo real cabe de sobra y evita que una
+# sola petición agote memoria o CPU del backend y del motor ML.
+MAX_HEADER_CHARS = 2_000
+MAX_BODY_CHARS   = 1_000_000
+MAX_RECEIVED     = 50
+
+
+def validate_attachments(files) -> str:
+    """
+    Devuelve un mensaje de error si algún adjunto no se acepta, o "" si todos
+    valen. Solo se aceptan los tipos que el sistema sabe leer (factura .xml o
+    .zip) y hasta PAYMENT_SHIELD_MAX_ATTACHMENT_MB cada uno.
+    """
+    if len(files) > settings.ANALYZE_MAX_ATTACHMENTS:
+        return f"Envía como máximo {settings.ANALYZE_MAX_ATTACHMENTS} adjuntos."
+    max_bytes = settings.PAYMENT_SHIELD_MAX_ATTACHMENT_MB * 1024 * 1024
+    allowed = settings.ANALYZE_ALLOWED_ATTACHMENT_EXTENSIONS
+    for upload in files:
+        name = os.path.basename(getattr(upload, "name", "") or "")
+        if not name.lower().endswith(allowed):
+            return f"Tipo de archivo no permitido ({name[:80]}). Solo {', '.join(allowed)}."
+        if upload.size > max_bytes:
+            return (f"El archivo {name[:80]} supera el límite de "
+                    f"{settings.PAYMENT_SHIELD_MAX_ATTACHMENT_MB} MB.")
+    return ""
 
 
 class PhishingCampaignSerializer(serializers.ModelSerializer):
@@ -60,21 +90,32 @@ class AlertUpdateSerializer(serializers.ModelSerializer):
         model  = Alert
         fields = ["status", "assigned_to"]
 
+    def validate_assigned_to(self, value):
+        # Solo se asigna a alguien de la propia empresa (o a uno mismo)
+        request = self.context.get("request")
+        if value is None or request is None:
+            return value
+        if value.pk == request.user.pk or same_org(request.user, value):
+            return value
+        raise serializers.ValidationError("Solo puedes asignar a usuarios de tu organización.")
+
 
 # ── Serializer de análisis de correo ─────────────────────
 class EmailHeadersInputSerializer(serializers.Serializer):
     """Encabezados del correo a analizar."""
     from_addr              = serializers.CharField(required=False, allow_blank=True,
-                                 source="from")
+                                 source="from", max_length=MAX_HEADER_CHARS)
     to_addr                = serializers.CharField(required=False, allow_blank=True,
-                                 source="to")
-    subject                = serializers.CharField(required=False, allow_blank=True)
+                                 source="to", max_length=MAX_HEADER_CHARS)
+    subject                = serializers.CharField(required=False, allow_blank=True,
+                                 max_length=MAX_HEADER_CHARS)
     reply_to               = serializers.CharField(required=False, allow_blank=True,
-                                 source="reply-to")
+                                 source="reply-to", max_length=MAX_HEADER_CHARS)
     authentication_results = serializers.CharField(required=False, allow_blank=True,
-                                 source="authentication-results")
+                                 source="authentication-results", max_length=MAX_HEADER_CHARS * 4)
     received               = serializers.ListField(
-                                 child=serializers.CharField(), required=False)
+                                 child=serializers.CharField(max_length=MAX_HEADER_CHARS),
+                                 required=False, max_length=MAX_RECEIVED)
 
 
 class EmailAnalysisRequestSerializer(serializers.Serializer):
@@ -84,8 +125,10 @@ class EmailAnalysisRequestSerializer(serializers.Serializer):
     (en multipart los encabezados van como headers.from_addr, headers.subject...).
     """
     headers   = EmailHeadersInputSerializer(required=False)
-    body_text = serializers.CharField(required=False, allow_blank=True, default="")
-    body_html = serializers.CharField(required=False, allow_blank=True, default="")
+    body_text = serializers.CharField(required=False, allow_blank=True, default="",
+                                      max_length=MAX_BODY_CHARS, trim_whitespace=False)
+    body_html = serializers.CharField(required=False, allow_blank=True, default="",
+                                      max_length=MAX_BODY_CHARS, trim_whitespace=False)
     attachment_names = serializers.ListField(
         child=serializers.CharField(max_length=255), required=False, max_length=50,
         help_text="Nombres de los adjuntos, sin su contenido (los envía la extensión)")

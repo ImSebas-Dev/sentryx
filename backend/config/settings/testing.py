@@ -26,5 +26,14 @@ COMMUNITY_HUB_URL            = ""
 COMMUNITY_NODE_API_KEY       = ""
 COMMUNITY_SYNC_MINUTES       = 15
 
-REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_CLASSES": []}  # noqa
+# Sin throttling global; los límites por endpoint (scope) se suben para que las
+# pruebas no choquen entre sí. "mfa" se deja igual: test_mfa prueba su límite.
+REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_CLASSES": [],  # noqa
+                  "DEFAULT_THROTTLE_RATES": {
+                      **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],  # noqa
+                      "auth_login": "10000/min", "auth_refresh": "10000/min",
+                      "auth_register": "10000/min", "auth_email": "10000/min",
+                      "analyze": "10000/min",
+                  }}
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+AUTH_EMAIL_COOLDOWN_SECONDS = 0

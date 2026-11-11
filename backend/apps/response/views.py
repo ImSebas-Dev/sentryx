@@ -22,9 +22,7 @@ from apps.users.organization import org_of
 TAG = "Respuesta a incidentes"
 
 
-def client_ip(request):
-    return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", ""))
+from apps.audit.utils import client_ip  # noqa: E402  (IP real detrás de nginx)
 
 
 class PDFRenderer(BaseRenderer):

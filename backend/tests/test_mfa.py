@@ -294,8 +294,19 @@ class TestAdminPolicy(MFATestCase):
                                 {"password": PASSWORD, "code": pyotp.TOTP(secret).now()})
         self.assertEqual(resp.status_code, 403)
 
+    def test_admin_cannot_reset_user_of_other_organization(self):
+        outsider = make_user("ajeno@otra.co", organization="Otra")
+        enable_mfa(outsider)
+        self.client.force_authenticate(self.admin)
+        resp = self.client.post(f"/api/v1/auth/users/{outsider.pk}/mfa/reset/")
+        self.assertEqual(resp.status_code, 404)
+        outsider.refresh_from_db()
+        self.assertTrue(outsider.mfa_enabled)
+
     def test_admin_can_reset_other_user(self):
-        user = make_user("perdio@sentryx.local")
+        user = make_user("perdio@sentryx.local", organization="Sentryx")
+        type(user).objects.filter(pk=self.admin.pk).update(organization="Sentryx")
+        self.admin.refresh_from_db()
         enable_mfa(user)
         self.client.force_authenticate(self.admin)
         resp = self.client.post(f"/api/v1/auth/users/{user.pk}/mfa/reset/")

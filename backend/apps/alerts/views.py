@@ -1,8 +1,8 @@
 """
 Sentryx v2 — Views de alertas.
-Aislamiento por usuario: cada analista ve solo sus propias alertas.
-El admin ve todas. El reentrenamiento se dispara automáticamente
-al marcar una alerta como falso positivo.
+Aislamiento: cada analista ve solo sus propias alertas; el admin, las de su
+empresa (apps.users.organization.scope_to_user). El reentrenamiento se dispara
+automáticamente al marcar una alerta como falso positivo.
 """
 import time
 import logging
@@ -11,6 +11,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework import serializers
 from drf_spectacular.utils import (
@@ -23,35 +24,37 @@ from apps.alerts.risk_layers import RiskLayers
 from apps.alerts.serializers import (
     AlertListSerializer, AlertDetailSerializer, AlertUpdateSerializer,
     EmailAnalysisMultipartSerializer, EmailAnalysisRequestSerializer,
-    EmailAnalysisResponseSerializer, PhishingCampaignSerializer,
+    EmailAnalysisResponseSerializer, PhishingCampaignSerializer, validate_attachments,
 )
 from apps.alerts.ml_client  import analyze_email_sync, MLEngineError
 from apps.alerts.service    import create_alert_from_ml_result
 from apps.audit.models      import AuditLog
+from apps.audit.utils       import client_ip
+from apps.users.organization import scope_to_user
 from apps.users.permissions import IsAnalystOrAbove, IsAuthenticatedReadOnly
 
 logger = logging.getLogger(__name__)
 
 
 def _alert_queryset(user):
-    """
-    Queryset base con aislamiento por usuario.
-    Los admins ven todas las alertas; el resto solo las suyas.
-    """
+    """Queryset base con aislamiento por usuario y por empresa."""
     qs = Alert.objects.select_related("campaign", "assigned_to", "owner")
-    if user.is_admin:
-        return qs
-    return qs.filter(owner=user)
+    return scope_to_user(qs, user)
 
 
 def _campaign_queryset(user):
-    """
-    Queryset base de campañas con aislamiento por usuario.
-    """
-    qs = PhishingCampaign.objects.all()
-    if user.is_admin:
-        return qs
-    return qs.filter(owner=user)
+    """Queryset base de campañas con aislamiento por usuario y por empresa."""
+    return scope_to_user(PhishingCampaign.objects.all(), user)
+
+
+class AlertFilterSerializer(serializers.Serializer):
+    """Valida los filtros del listado antes de usarlos en la consulta."""
+    severity      = serializers.ChoiceField(choices=Alert.Severity.choices, required=False)
+    status        = serializers.ChoiceField(choices=Alert.Status.choices, required=False)
+    phishing_type = serializers.CharField(max_length=40, required=False)
+    domain        = serializers.CharField(max_length=253, required=False)
+    campaign      = serializers.UUIDField(required=False)
+    since         = serializers.DateTimeField(required=False)
 
 
 @extend_schema(tags=["alerts"], parameters=[
@@ -71,19 +74,19 @@ class AlertListView(generics.ListAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Alert.objects.none()
         qs = _alert_queryset(self.request.user)
+        params = AlertFilterSerializer(data=self.request.query_params)
+        # Antes un "since" o "campaign" mal formado llegaba al ORM y daba 500
+        params.is_valid(raise_exception=True)
+        f = params.validated_data
         for field in ("severity", "phishing_type", "status"):
-            val = self.request.query_params.get(field)
-            if val:
-                qs = qs.filter(**{field: val})
-        domain = self.request.query_params.get("domain")
-        if domain:
-            qs = qs.filter(sender_domain__icontains=domain)
-        campaign_id = self.request.query_params.get("campaign")
-        if campaign_id:
-            qs = qs.filter(campaign_id=campaign_id)
-        since = self.request.query_params.get("since")
-        if since:
-            qs = qs.filter(detected_at__gte=since)
+            if f.get(field):
+                qs = qs.filter(**{field: f[field]})
+        if f.get("domain"):
+            qs = qs.filter(sender_domain__icontains=f["domain"])
+        if f.get("campaign"):
+            qs = qs.filter(campaign_id=f["campaign"])
+        if f.get("since"):
+            qs = qs.filter(detected_at__gte=f["since"])
         return qs.order_by("-detected_at")
 
 
@@ -108,8 +111,7 @@ class AlertDetailView(generics.RetrieveUpdateAPIView):
         response = super().partial_update(request, *args, **kwargs)
 
         if new_status != old_status:
-            ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-                  or request.META.get("REMOTE_ADDR", ""))
+            ip = client_ip(request)
             AuditLog.log(
                 action=AuditLog.Action.UPDATE, resource="alerts",
                 resource_id=str(alert.pk), user=request.user, ip=ip,
@@ -198,11 +200,16 @@ def _trigger_auto_retrain(alert, user, correction_type: str):
 )
 class EmailAnalyzeView(APIView):
     permission_classes = [IsAnalystOrAbove]
+    throttle_classes   = [ScopedRateThrottle]
+    throttle_scope     = "analyze"
 
     def post(self, request):
         ser = EmailAnalysisRequestSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        upload_error = validate_attachments(request.FILES.getlist("attachments"))
+        if upload_error:
+            return Response({"attachments": [upload_error]}, status=status.HTTP_400_BAD_REQUEST)
 
         data         = ser.validated_data
         headers_data = data.get("headers") or {}
@@ -222,8 +229,11 @@ class EmailAnalyzeView(APIView):
         try:
             ml_result = analyze_email_sync(email_payload)
         except MLEngineError as exc:
+            # El detalle (URL interna, respuesta del motor) solo va al log
+            logger.error("[Analyze] Motor ML no disponible: %s", exc)
             return Response(
-                {"error": str(exc), "detail": "El motor de análisis no está disponible."},
+                {"error": "El motor de análisis no está disponible. Inténtalo más tarde.",
+                 "detail": "El motor de análisis no está disponible."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         inference_ms = round((time.perf_counter() - t0) * 1000, 2)
@@ -246,8 +256,7 @@ class EmailAnalyzeView(APIView):
         layer_fields = layers.apply(alert)
         layers.record_for_network(alert, ml_result)
 
-        ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-              or request.META.get("REMOTE_ADDR", ""))
+        ip = client_ip(request)
         AuditLog.log(
             action=AuditLog.Action.ANALYZE, resource="alerts",
             resource_id=str(alert.pk) if alert else "",

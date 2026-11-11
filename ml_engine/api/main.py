@@ -5,6 +5,7 @@ FastAPI app que expone el ensemble de detección de phishing por correo.
 import os
 import sys
 import csv
+import hmac
 import json
 import time
 import shutil
@@ -15,7 +16,6 @@ import subprocess
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from decouple import config
 from typing import Optional, Dict, Any, List
@@ -25,8 +25,12 @@ from pipelines.ensemble import EmailEnsemble
 logger = logging.getLogger("uvicorn.error")
 
 # ── Configuración ─────────────────────────────────────────
-ML_ENGINE_API_KEY = config("ML_ENGINE_API_KEY", default="dev-key")
+# Sin valor por defecto: antes, si faltaba la variable, la clave era "dev-key"
+# y cualquiera que llegara al servicio podía analizar y REENTRENAR los modelos.
+ML_ENGINE_API_KEY = config("ML_ENGINE_API_KEY", default="")
 api_key_header    = APIKeyHeader(name="X-API-Key", auto_error=False)
+# /docs y /redoc solo si se piden explícitamente (desarrollo)
+ML_ENABLE_DOCS    = config("ML_ENABLE_DOCS", default=False, cast=bool)
 
 ML_ENGINE_DIR = Path(__file__).resolve().parent.parent
 MODEL_DIR     = ML_ENGINE_DIR / "models" / "trained"
@@ -48,16 +52,11 @@ app = FastAPI(
         "Analiza encabezados, contenido y URLs mediante un ensemble de tres modelos Scikit-learn."
     ),
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if ML_ENABLE_DOCS else None,
+    redoc_url="/redoc" if ML_ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ML_ENABLE_DOCS else None,
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://backend:8000"],
-    allow_methods=["POST", "GET"],
-    allow_headers=["*"],
-)
+# Sin CORS: solo el backend llama a este servicio, de servidor a servidor.
 
 # ── Ensemble con recarga en caliente ──────────────────────
 # Se carga al iniciar y se vuelve a cargar cuando cambian los .joblib
@@ -95,7 +94,10 @@ def get_ensemble(force: bool = False) -> EmailEnsemble:
 
 # ── Auth ──────────────────────────────────────────────────
 async def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key != ML_ENGINE_API_KEY:
+    if not ML_ENGINE_API_KEY:
+        # Falla cerrado: sin clave configurada nadie puede usar el motor
+        raise HTTPException(status_code=503, detail="ML_ENGINE_API_KEY no está configurada")
+    if not api_key or not hmac.compare_digest(api_key.encode(), ML_ENGINE_API_KEY.encode()):
         raise HTTPException(status_code=403, detail="API key inválida")
     return api_key
 
@@ -119,8 +121,8 @@ class EmailHeaders(BaseModel):
 class EmailAnalysisRequest(BaseModel):
     """Correo completo para análisis de phishing."""
     headers:   Optional[EmailHeaders] = None
-    body_text: str = Field(default="", description="Cuerpo en texto plano")
-    body_html: Optional[str] = Field(None, description="Cuerpo en HTML (preferido si está disponible)")
+    body_text: str = Field(default="", max_length=1_000_000, description="Cuerpo en texto plano")
+    body_html: Optional[str] = Field(None, max_length=1_000_000, description="Cuerpo en HTML (preferido si está disponible)")
 
     class Config:
         json_schema_extra = {
@@ -232,7 +234,7 @@ async def analyze_url(
     _: str = Depends(verify_api_key),
 ):
     """Analiza una sola URL — útil para el analizador manual del dashboard."""
-    from pipelines.email_urls import extract_url_features, URLsPipeline
+    from pipelines.email_urls import URLsPipeline
     url = data.get("url", "")
     if not url:
         raise HTTPException(status_code=422, detail="El campo 'url' es requerido")

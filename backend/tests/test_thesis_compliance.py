@@ -149,9 +149,16 @@ class TestIncidentIsolation(TestCase):
         self.assertEqual(titles, {"De Ana", "Asignado a Ana"})
         self.assertEqual(self.client.get(f"/api/v1/incidents/{self.foreign.pk}/").status_code, 404)
 
-    def test_admin_sees_all(self):
+    def test_admin_sees_all_of_own_organization(self):
+        User = type(self.admin)
+        User.objects.filter(pk__in=[self.ana.pk, self.luis.pk, self.admin.pk]).update(organization="Pyme")
+        outsider = make_user("x@otra.co", organization="Otra")
+        Incident.objects.create(title="De otra empresa", created_by=outsider)
+        self.admin.refresh_from_db()
         self.client.force_authenticate(self.admin)
-        self.assertEqual(self.client.get("/api/v1/incidents/").data["count"], 2)
+        resp = self.client.get("/api/v1/incidents/")
+        self.assertEqual(resp.data["count"], 2)
+        self.assertNotIn("De otra empresa", {i["title"] for i in resp.data["results"]})
 
     def test_cannot_attach_other_users_alerts(self):
         foreign_alert = Alert.objects.create(title="x", owner=self.luis, risk_score=80)

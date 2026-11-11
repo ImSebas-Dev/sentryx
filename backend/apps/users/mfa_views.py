@@ -19,12 +19,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from drf_spectacular.utils import (
-    extend_schema, inline_serializer, OpenApiExample, OpenApiParameter, OpenApiResponse,
+    extend_schema, inline_serializer, OpenApiExample, OpenApiResponse,
 )
-from drf_spectacular.types import OpenApiTypes
 
 from apps.audit.models import AuditLog
-from apps.users import mfa
+from apps.audit.utils import client_ip
+from apps.users import cookies, mfa
+from apps.users.organization import same_org
 from apps.users.permissions import IsAdminUser
 from apps.users.serializers import issue_tokens
 
@@ -37,11 +38,6 @@ NOT_CONFIGURED = Response(
      "code": "mfa_not_configured"},
     status=status.HTTP_503_SERVICE_UNAVAILABLE,
 )
-
-
-def client_ip(request):
-    return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", ""))
 
 
 def audit(request, action, event, user, **detail):
@@ -149,7 +145,7 @@ class MFAEnableView(APIView):
         # limpio para que el admin pueda seguir sin cerrar sesión.
         if had_setup_claim:
             body.update(issue_tokens(user))
-        return Response(body)
+        return cookies.token_response(request, body)
 
 
 @extend_schema(tags=["mfa"], summary="Desactivar el 2FA (contraseña + código)",
@@ -293,7 +289,7 @@ class MFAVerifyView(APIView):
         body = issue_tokens(user)
         if used_recovery:
             body["recovery_codes_remaining"] = remaining_codes
-        return Response(body)
+        return cookies.token_response(request, body)
 
 
 @extend_schema(tags=["mfa"], summary="Restablecer el 2FA de otro usuario (admin)", request=None,
@@ -305,6 +301,10 @@ class MFAAdminResetView(APIView):
 
     def post(self, request, user_id):
         target = User.objects.filter(pk=user_id).first()
+        # Solo cuentas de la propia empresa (el superusuario de la plataforma, todas).
+        # Responder 404 también para las ajenas: no revelar que existen.
+        if target is not None and not (request.user.is_superuser or same_org(request.user, target)):
+            target = None
         if target is None:
             return Response({"error": "Usuario no encontrado."},
                             status=status.HTTP_404_NOT_FOUND)

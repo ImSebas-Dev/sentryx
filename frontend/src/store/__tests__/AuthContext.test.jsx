@@ -5,9 +5,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { server, MOCK_TOKENS, MOCK_USER, MOCK_ADMIN } from '../../test/mswServer'
+import { server, mockSession, MOCK_TOKENS, MOCK_USER, MOCK_ADMIN } from '../../test/mswServer'
 import { AuthProvider, useAuth } from '../AuthContext'
 import { MemoryRouter } from 'react-router-dom'
+import { tokenStore } from '../../services/api'
 
 // Wrapper que incluye los providers necesarios
 const wrapper = ({ children }) => (
@@ -32,8 +33,8 @@ describe('useAuth — estado inicial', () => {
     expect(result.current.user).toBeNull()
   })
 
-  it('carga el perfil automáticamente si hay token en localStorage', async () => {
-    localStorage.setItem('access_token', 'test-token-valid')
+  it('carga el perfil automáticamente si hay un access token en memoria', async () => {
+    tokenStore.set('test-token-valid')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.user).toBeTruthy()
@@ -46,12 +47,27 @@ describe('useAuth — estado inicial', () => {
         HttpResponse.json({ detail: 'Token inválido' }, { status: 401 })
       )
     )
-    localStorage.setItem('access_token', 'token-invalido')
+    tokenStore.set('token-invalido')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.user).toBeNull()
-    // localStorage debe quedar limpio
-    expect(localStorage.getItem('access_token')).toBeNull()
+    // El token inválido se descarta
+    expect(tokenStore.get()).toBeNull()
+  })
+
+  it('al recargar la página restaura la sesión con la cookie del refresh', async () => {
+    mockSession.hasRefreshCookie = true
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.user.username).toBe('analista01')
+    expect(tokenStore.get()).toBe(MOCK_TOKENS.access)
+  })
+
+  it('sin cookie del refresh no hay sesión', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.user).toBeNull()
+    expect(tokenStore.get()).toBeNull()
   })
 })
 
@@ -70,7 +86,7 @@ describe('useAuth — login', () => {
     expect(result.current.user.username).toBe('analista01')
   })
 
-  it('login guarda tokens en localStorage', async () => {
+  it('login guarda el access solo en memoria y el refresh queda en la cookie', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -78,8 +94,11 @@ describe('useAuth — login', () => {
       await result.current.login('analista@sentryx.test', 'correcta')
     })
 
-    expect(localStorage.getItem('access_token')).toBe(MOCK_TOKENS.access)
-    expect(localStorage.getItem('refresh_token')).toBe(MOCK_TOKENS.refresh)
+    expect(tokenStore.get()).toBe(MOCK_TOKENS.access)
+    expect(mockSession.hasRefreshCookie).toBe(true)
+    // Nada de tokens en localStorage: un XSS podría leerlos de ahí
+    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(localStorage.getItem('refresh_token')).toBeNull()
   })
 
   it('login lanza error con credenciales incorrectas', async () => {
@@ -111,27 +130,27 @@ describe('useAuth — login', () => {
 
 describe('useAuth — logout', () => {
   beforeEach(() => {
-    localStorage.setItem('access_token',  'tok')
-    localStorage.setItem('refresh_token', 'ref')
+    tokenStore.set('tok')
+    mockSession.hasRefreshCookie = true
   })
 
   it('logout limpia el usuario', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    act(() => result.current.logout())
+    await act(async () => { await result.current.logout() })
 
     expect(result.current.user).toBeNull()
   })
 
-  it('logout limpia localStorage', async () => {
+  it('logout borra el access de memoria y revoca la cookie en el servidor', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    act(() => result.current.logout())
+    await act(async () => { await result.current.logout() })
 
-    expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
+    expect(tokenStore.get()).toBeNull()
+    expect(mockSession.hasRefreshCookie).toBe(false)
   })
 })
 
@@ -139,7 +158,7 @@ describe('useAuth — permisos RBAC', () => {
   beforeEach(() => localStorage.clear())
 
   it('isAnalyst=true para rol analyst', async () => {
-    localStorage.setItem('access_token', 'tok')
+    tokenStore.set('tok')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     // MOCK_USER tiene role: 'analyst'
@@ -148,7 +167,7 @@ describe('useAuth — permisos RBAC', () => {
   })
 
   it('isAdmin=false para rol analyst', async () => {
-    localStorage.setItem('access_token', 'tok')
+    tokenStore.set('tok')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.isAdmin).toBe(false)
@@ -158,7 +177,7 @@ describe('useAuth — permisos RBAC', () => {
     server.use(
       http.get('/api/v1/auth/me/', () => HttpResponse.json(MOCK_ADMIN))
     )
-    localStorage.setItem('access_token', 'tok')
+    tokenStore.set('tok')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.isAdmin).toBe(true)
@@ -171,7 +190,7 @@ describe('useAuth — permisos RBAC', () => {
         HttpResponse.json({ ...MOCK_USER, role: 'viewer', is_analyst: false, is_admin: false })
       )
     )
-    localStorage.setItem('access_token', 'tok')
+    tokenStore.set('tok')
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.isAnalyst).toBe(false)

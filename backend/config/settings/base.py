@@ -22,6 +22,9 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    # Lista negra de refresh tokens: sin esta app BLACKLIST_AFTER_ROTATION no
+    # hace nada y un refresh robado o ya usado seguía sirviendo hasta caducar.
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "axes",
@@ -83,7 +86,13 @@ DATABASES = {"default": {
     "PASSWORD": config("POSTGRES_PASSWORD", default=""),
     "HOST":     config("POSTGRES_HOST",     default="db"),
     "PORT":     config("POSTGRES_PORT",     default="5432"),
-    "OPTIONS":  {"options": "-c timezone=America/Bogota"},
+    "CONN_MAX_AGE": config("POSTGRES_CONN_MAX_AGE", default=60, cast=int),
+    "CONN_HEALTH_CHECKS": True,
+    "OPTIONS":  {
+        "options": "-c timezone=America/Bogota -c statement_timeout=30000",
+        # "require" o "verify-full" si la base de datos está en otra máquina
+        "sslmode": config("POSTGRES_SSLMODE", default="prefer"),
+    },
 }}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -114,14 +123,18 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Argon2id para las contraseñas nuevas. PBKDF2 queda para leer los hashes
+# antiguos: Django los vuelve a guardar con Argon2 en el siguiente login.
 PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
 ]
 
 # ── JWT ───────────────────────────────────────────────────
+# El access token vive solo en memoria del navegador: que dure poco. El
+# refresh viaja en una cookie HttpOnly (ver apps/users/cookies.py).
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME":    timedelta(minutes=config("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", default=60, cast=int)),
+    "ACCESS_TOKEN_LIFETIME":    timedelta(minutes=config("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", default=15, cast=int)),
     "REFRESH_TOKEN_LIFETIME":   timedelta(days=config("JWT_REFRESH_TOKEN_LIFETIME_DAYS", default=1, cast=int)),
     "ALGORITHM":                config("JWT_ALGORITHM", default="HS256"),
     "AUTH_HEADER_TYPES":        ("Bearer",),
@@ -145,14 +158,28 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Solo JSON: la API navegable de DRF queda para desarrollo (development.py)
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
     # El cupo es por usuario y compartido por TODOS los endpoints (incluidos
     # el polling del dashboard y la extensión), por eso no puede ser muy bajo.
     # Los anónimos (login, registro) se cuentan por IP real del cliente.
-    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.UserRateThrottle"],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
     "DEFAULT_THROTTLE_RATES": {
+        "anon": config("THROTTLE_ANON_RATE", default="300/hour"),
         "user": config("THROTTLE_USER_RATE", default="1000/hour"),
+        # Login con contraseña y renovación del token, por IP
+        "auth_login":   config("THROTTLE_AUTH_LOGIN_RATE",   default="10/min"),
+        "auth_refresh": config("THROTTLE_AUTH_REFRESH_RATE", default="60/min"),
+        # Registro y correos (verificación, recuperación): evita spam de correos
+        "auth_register": config("THROTTLE_AUTH_REGISTER_RATE", default="10/hour"),
+        "auth_email":    config("THROTTLE_AUTH_EMAIL_RATE",    default="5/hour"),
+        # Análisis de correos: llama al motor ML, que es lo más costoso
+        "analyze": config("THROTTLE_ANALYZE_RATE", default="300/hour"),
         # Endpoints de 2FA: se cuenta por IP (anónimos) o por usuario
         "mfa":  config("THROTTLE_MFA_RATE",  default="10/min"),
         # Polling de la extensión: un correo abierto consulta cada 20 s (180/hora)
@@ -223,6 +250,11 @@ AXES_RESET_ON_SUCCESS   = True
 # El login envía "email" (USERNAME_FIELD). Con el valor por defecto
 # ("username") axes no veía la cuenta y solo bloqueaba por IP.
 AXES_USERNAME_FORM_FIELD = "email"
+# Sin esto axes usaba REMOTE_ADDR, que detrás de nginx es la IP de nginx: cinco
+# fallos de cualquier persona bloqueaban el login de todos los usuarios.
+AXES_CLIENT_IP_CALLABLE = "apps.audit.utils.client_ip"
+# La API envía "email" y el login de /admin/ "username": contar ambos
+AXES_USERNAME_CALLABLE  = "apps.audit.utils.axes_username"
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
@@ -241,8 +273,15 @@ MFA_MAX_ATTEMPTS         = 5     # intentos de código por mfa_token
 MFA_RECOVERY_CODES       = 8
 
 # ── CORS ──────────────────────────────────────────────────
+# Lista explícita de orígenes: nunca CORS_ALLOW_ALL_ORIGINS con credenciales.
+# El frontend se sirve desde el mismo origen que la API (nginx o el proxy de
+# Vite) y la extensión usa host_permissions, así que casi no hace falta CORS.
 CORS_ALLOWED_ORIGINS   = config("CORS_ALLOWED_ORIGINS", default="http://localhost:5173", cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
+CORS_URLS_REGEX        = r"^/api/.*$"
+CORS_ALLOW_METHODS     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
+CORS_ALLOW_HEADERS     = ["accept", "authorization", "content-type", "x-sentryx-client"]
+CORS_PREFLIGHT_MAX_AGE = 3600
 
 # ── Privacidad — Ley 1581/2012 ────────────────────────────
 PSEUDONYMIZATION_SALT               = config("PSEUDONYMIZATION_SALT")
@@ -272,7 +311,7 @@ ML_RETRAIN_MIN_SAMPLES = config("ML_RETRAIN_MIN_SAMPLES", default=5, cast=int)
 # ── Threat Intelligence ───────────────────────────────────
 MISP_URL        = config("MISP_URL",        default="")
 MISP_API_KEY    = config("MISP_API_KEY",    default="")
-MISP_VERIFY_SSL = config("MISP_VERIFY_SSL", default=False, cast=bool)
+MISP_VERIFY_SSL = config("MISP_VERIFY_SSL", default=True, cast=bool)
 
 PHISHTANK_API_KEY              = config("PHISHTANK_API_KEY",              default="")
 PHISHTANK_SYNC_INTERVAL_HOURS  = config("PHISHTANK_SYNC_INTERVAL_HOURS",  default=1, cast=int)
@@ -317,9 +356,73 @@ USE_I18N      = True
 USE_TZ        = True
 
 # ── Seguridad HTTP ────────────────────────────────────────
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS             = "DENY"
-SECURE_BROWSER_XSS_FILTER   = True
+# production.py activa HTTPS obligatorio, HSTS y cookies Secure.
+SECURE_CONTENT_TYPE_NOSNIFF       = True
+X_FRAME_OPTIONS                   = "DENY"
+SECURE_REFERRER_POLICY            = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+# Cookies de sesión (solo las usa /admin/) y CSRF
+SESSION_COOKIE_HTTPONLY         = True
+SESSION_COOKIE_SAMESITE         = "Lax"
+SESSION_COOKIE_AGE              = config("SESSION_COOKIE_AGE", default=8 * 3600, cast=int)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SECURE           = config("COOKIE_SECURE", default=False, cast=bool)
+CSRF_COOKIE_HTTPONLY            = True
+CSRF_COOKIE_SAMESITE            = "Lax"
+CSRF_COOKIE_SECURE              = SESSION_COOKIE_SECURE
+CSRF_TRUSTED_ORIGINS            = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+
+# Cookie del refresh token del panel web (apps/users/cookies.py). HttpOnly:
+# el JavaScript de la página no puede leerla, así que un XSS no se la lleva.
+AUTH_REFRESH_COOKIE_NAME   = "sentryx_refresh"
+AUTH_REFRESH_COOKIE_PATH   = "/api/v1/auth/"
+AUTH_REFRESH_COOKIE_SECURE = SESSION_COOKIE_SECURE
+# Cabecera que el panel web envía en cada petición. Un sitio ajeno no puede
+# añadirla sin pasar el preflight de CORS: es la defensa CSRF de los endpoints
+# que leen la cookie (refresh y logout), junto con SameSite=Strict.
+AUTH_WEB_CLIENT_HEADER = "HTTP_X_SENTRYX_CLIENT"
+
+# ── Enlaces de los correos de cuenta ──────────────────────
+EMAIL_VERIFICATION_TIMEOUT_HOURS = config("EMAIL_VERIFICATION_TIMEOUT_HOURS", default=24, cast=int)
+PASSWORD_RESET_TIMEOUT_MINUTES   = config("PASSWORD_RESET_TIMEOUT_MINUTES",   default=30, cast=int)
+# Espera mínima entre dos correos de verificación o recuperación a la misma cuenta
+AUTH_EMAIL_COOLDOWN_SECONDS      = config("AUTH_EMAIL_COOLDOWN_SECONDS",      default=60, cast=int)
+
+# ── Subida de archivos y tamaño de las peticiones ─────────
+DATA_UPLOAD_MAX_MEMORY_SIZE   = 5 * 1024 * 1024   # cuerpo JSON/form sin contar archivos
+FILE_UPLOAD_MAX_MEMORY_SIZE   = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200
+DATA_UPLOAD_MAX_NUMBER_FILES  = 10
+# Adjuntos aceptados en /alerts/analyze/: solo los que el sistema sabe leer
+ANALYZE_ALLOWED_ATTACHMENT_EXTENSIONS = (".xml", ".zip")
+ANALYZE_MAX_ATTACHMENTS               = 10
+
+# ── Panel de administración de Django ─────────────────────
+# Cambia la ruta en producción (p. ej. DJANGO_ADMIN_URL=gestion-7f3a/) y
+# déjalo apagado si no lo usas (DJANGO_ADMIN_ENABLED=False).
+ADMIN_ENABLED = config("DJANGO_ADMIN_ENABLED", default=True, cast=bool)
+ADMIN_URL     = config("DJANGO_ADMIN_URL", default="admin/")
+
+# ── Logs ──────────────────────────────────────────────────
+# sentryx.security recibe logins fallidos, bloqueos, 401/403/429 y cambios
+# sensibles. En producción envía la salida del contenedor a tu sistema de logs.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "[{levelname}] {asctime} {name} — {message}", "style": "{"},
+    },
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "verbose"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django":           {"handlers": ["console"], "level": "INFO",    "propagate": False},
+        "django.security":  {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "sentryx.security": {"handlers": ["console"], "level": "INFO",    "propagate": False},
+        "apps":             {"handlers": ["console"], "level": "INFO",    "propagate": False},
+        "axes":             {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}
 
 # ── SendGrid (correo transaccional) ──────────────────────
 SENDGRID_API_KEY    = config("SENDGRID_API_KEY",    default="")

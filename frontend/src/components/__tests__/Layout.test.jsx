@@ -7,6 +7,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders, setAuthTokens } from '../../test/testUtils'
 import Layout from '../Layout'
+import { tokenStore } from '../../services/api'
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -145,6 +146,6 @@ describe('Layout — logout', () => {
     await user.click(screen.getByText('Cerrar sesión'))
     expect(mockNavigate).toHaveBeenCalledWith('/login')
     // Tokens eliminados
-    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(tokenStore.get()).toBeNull()
   })
 })

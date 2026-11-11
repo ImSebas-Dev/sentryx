@@ -118,15 +118,16 @@ def _assign_or_create_campaign(alert, sender_domain, phishing_type, owner):
 
     window_start = timezone.now() - timedelta(hours=1)
 
-    # La campaña se detecta solo dentro del universo del mismo usuario
-    # (o globalmente para el admin)
+    # La campaña se detecta solo dentro de lo que el dueño puede ver: sus
+    # alertas o, si es admin, las de su empresa. Nunca entre empresas.
+    from apps.users.organization import scope_to_user
     recent_qs = Alert.objects.filter(
         sender_domain=sender_domain,
         detected_at__gte=window_start,
     ).exclude(pk=alert.pk)
 
-    if owner and not owner.is_admin:
-        recent_qs = recent_qs.filter(owner=owner)
+    if owner:
+        recent_qs = scope_to_user(recent_qs, owner)
 
     if recent_qs.count() < 2:
         return
@@ -149,8 +150,8 @@ def _assign_or_create_campaign(alert, sender_domain, phishing_type, owner):
         detected_at__gte=window_start,
         campaign__isnull=True,
     )
-    if owner and not owner.is_admin:
-        to_group = to_group.filter(owner=owner)
+    if owner:
+        to_group = scope_to_user(to_group, owner)
     to_group.update(campaign=campaign)
 
     alert.campaign = campaign

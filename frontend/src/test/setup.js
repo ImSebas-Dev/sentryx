@@ -4,7 +4,8 @@
 import '@testing-library/jest-dom'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeAll, afterAll, vi } from 'vitest'
-import { server } from './mswServer'
+import { server, mockSession } from './mswServer'
+import { tokenStore } from '../services/api'
 
 // ── Polyfills para jsdom ──────────────────────────────────
 
@@ -56,6 +57,9 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }))
 afterEach(() => {
   server.resetHandlers()
   cleanup()
+  // La sesión (access en memoria + cookie simulada) no pasa de una prueba a otra
+  tokenStore.clear()
+  mockSession.hasRefreshCookie = false
   // El interceptor de api.js redirige con location.href = '/login'; restaurar
   // la URL absoluta o MSW no podrá resolver las peticiones de la siguiente prueba.
   window.location.href = 'http://localhost/'

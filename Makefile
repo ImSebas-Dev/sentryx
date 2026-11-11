@@ -22,9 +22,9 @@ up: ## Levantar todos los servicios en modo desarrollo
 	@echo ""
 	@echo "  Dashboard  → http://localhost"
 	@echo "  API        → http://localhost/api/v1/"
-	@echo "  ML Docs    → http://localhost/ml/docs"
+	@echo "  ML Docs    → http://127.0.0.1:8001/docs"
 	@echo "  Admin      → http://localhost/admin/"
-	@echo "  Flower     → http://localhost:5555"
+	@echo "  Flower     → http://127.0.0.1:5555"
 
 down: ## Detener todos los servicios
 	$(DC) down

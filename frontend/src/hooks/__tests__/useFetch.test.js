@@ -7,13 +7,14 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../../test/mswServer'
 import { useFetch, usePolling, useSubmit } from '../useFetch'
 import { alertsAPI } from '../../services/api'
+import { tokenStore } from '../../services/api'
 
 // Helper que usa la API real (interceptada por MSW)
 const fetchStats = () => alertsAPI.stats()
 
 describe('useFetch', () => {
   beforeEach(() => {
-    localStorage.setItem('access_token', 'test-token')
+    tokenStore.set('test-token')
   })
 
   it('inicia con loading=true y data=null', () => {
@@ -81,7 +82,7 @@ describe('useFetch', () => {
 
 describe('usePolling', () => {
   beforeEach(() => {
-    localStorage.setItem('access_token', 'test-token')
+    tokenStore.set('test-token')
   })
 
   it('carga datos en el primer render igual que useFetch', async () => {
@@ -100,7 +101,7 @@ describe('usePolling', () => {
 
 describe('useSubmit', () => {
   beforeEach(() => {
-    localStorage.setItem('access_token', 'test-token')
+    tokenStore.set('test-token')
   })
 
   it('inicia sin error ni success', () => {

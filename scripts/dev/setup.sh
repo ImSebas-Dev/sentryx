@@ -35,55 +35,14 @@ else
 fi
 success "Docker OK | Compose: $COMPOSE_CMD"
 
-# ── 2. Generar .env con claves fijas (para desarrollo) ───
+# ── 2. Generar .env con secretos aleatorios ──────────────
+# Antes se escribían claves fijas publicadas en el repositorio: cualquiera que
+# lo hubiera visto conocía la SECRET_KEY y las contraseñas de BD y Redis.
 if [ -f ".env" ]; then
   warn ".env ya existe — no se sobreescribe."
 else
-  info "Generando .env..."
-  cat > .env << 'ENVEOF'
-ENVIRONMENT=development
-DJANGO_SECRET_KEY=sentryx-dev-secret-key-2026-cambiar-en-produccion
-DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend
-DJANGO_SETTINGS_MODULE=config.settings.development
-POSTGRES_DB=sentryx
-POSTGRES_USER=sentryx
-POSTGRES_PASSWORD=sentryx123
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-REDIS_PASSWORD=redis123
-REDIS_URL=redis://:redis123@redis:6379/0
-CELERY_BROKER_URL=redis://:redis123@redis:6379/0
-CELERY_RESULT_BACKEND=redis://:redis123@redis:6379/1
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_LIFETIME_MINUTES=60
-JWT_REFRESH_TOKEN_LIFETIME_DAYS=1
-MFA_ENCRYPTION_KEY=sentryx-dev-mfa-key-2026-cambiar-en-produccion
-MFA_REQUIRED_FOR_ADMINS=False
-THROTTLE_MFA_RATE=10/min
-ML_ENGINE_URL=http://ml_engine:8001
-ML_ENGINE_API_KEY=mlkey123
-ML_THRESHOLD_SUSPICIOUS=40
-ML_THRESHOLD_PHISHING=70
-ML_THRESHOLD_CRITICAL=85
-ML_WEIGHT_HEADERS=0.35
-ML_WEIGHT_CONTENT=0.40
-ML_WEIGHT_URLS=0.25
-ML_RETRAIN_MIN_SAMPLES=5
-PSEUDONYMIZATION_SALT=salt-unico-sentryx-2026
-DATA_RETENTION_EVENT_LOGS_DAYS=90
-DATA_RETENTION_INCIDENTS_DAYS=365
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost
-SENDGRID_API_KEY=
-SENDGRID_FROM_EMAIL=noreply@sentryx.com
-FRONTEND_URL=http://localhost
-AXES_FAILURE_LIMIT=5
-AXES_COOLOFF_TIME=1
-PHISHTANK_API_KEY=
-PHISHTANK_SYNC_INTERVAL_HOURS=1
-OPENPHISH_FEED_URL=https://openphish.com/feed.txt
-OPENPHISH_SYNC_INTERVAL_HOURS=6
-ENVEOF
+  info "Generando .env con secretos nuevos..."
+  python3 scripts/dev/generate_env.py
   success ".env generado"
 fi
 
@@ -125,13 +84,17 @@ $COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm backend \
 success "Migraciones aplicadas"
 
 # ── 6. Crear usuario admin ────────────────────────────────
+# Contraseñas aleatorias: admin123/analista123 estaban publicadas en el README.
+ADMIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+ANALYST_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
 info "Creando usuario administrador..."
-$COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm backend \
+$COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm -e SEED_PASSWORD="$ADMIN_PASSWORD" backend \
   python manage.py shell -c "
+import os
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='admin@sentryx.local').exists():
-    u = User.objects.create_superuser('admin', 'admin@sentryx.local', 'admin123', role='admin', organization='Sentryx Demo')
+    u = User.objects.create_superuser('admin', 'admin@sentryx.local', os.environ['SEED_PASSWORD'], role='admin', organization='Sentryx Demo')
     u.is_email_verified = True
     u.accepted_terms = True
     u.save()
@@ -140,18 +103,19 @@ else:
     User.objects.filter(email='admin@sentryx.local').update(
         is_email_verified=True, accepted_terms=True
     )
-    print('Admin ya existe — actualizado')
+    print('Admin ya existe — actualizado (su contraseña NO se cambió)')
 "
 success "Admin listo"
 
 # ── 7. Crear usuario analista ─────────────────────────────
 info "Creando usuario analista..."
-$COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm backend \
+$COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml run --rm -e SEED_PASSWORD="$ANALYST_PASSWORD" backend \
   python manage.py shell -c "
+import os
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='analista@sentryx.local').exists():
-    u = User.objects.create_user('analista', 'analista@sentryx.local', 'analista123', role='analyst', organization='Sentryx Demo')
+    u = User.objects.create_user('analista', 'analista@sentryx.local', os.environ['SEED_PASSWORD'], role='analyst', organization='Sentryx Demo')
     u.is_email_verified = True
     u.accepted_terms = True
     u.save()
@@ -160,7 +124,7 @@ else:
     User.objects.filter(email='analista@sentryx.local').update(
         is_email_verified=True, accepted_terms=True
     )
-    print('Analista ya existe — actualizado')
+    print('Analista ya existe — actualizado (su contraseña NO se cambió)')
 "
 success "Analista listo"
 
@@ -196,16 +160,16 @@ echo ""
 echo -e "  ${GREEN}Dashboard${NC}        →  http://localhost"
 echo -e "  ${GREEN}API REST${NC}         →  http://localhost/api/v1/"
 echo -e "  ${GREEN}API docs (OpenAPI)${NC} →  http://localhost/api/v1/docs/"
-echo -e "  ${GREEN}ML Engine docs${NC}   →  http://localhost/ml/docs"
+echo -e "  ${GREEN}ML Engine docs${NC}   →  http://127.0.0.1:8001/docs (solo desarrollo)"
 echo -e "  ${GREEN}Django Admin${NC}     →  http://localhost/admin/"
 echo -e "  ${GREEN}Flower (Celery)${NC}  →  http://localhost:5555"
 echo ""
 echo -e "  ${BOLD}Credenciales:${NC}"
 echo -e "  Email:      admin@sentryx.local"
-echo -e "  Contraseña: admin123"
+echo -e "  Contraseña: ${ADMIN_PASSWORD}  (solo si se acaba de crear)"
 echo ""
 echo -e "  Email:      analista@sentryx.local"
-echo -e "  Contraseña: analista123"
+echo -e "  Contraseña: ${ANALYST_PASSWORD}  (solo si se acaba de crear)"
 echo ""
 echo -e "  Verificación en dos pasos: actívala en Dashboard → Seguridad de la cuenta."
 echo -e "  Extensión de navegador:   ver extension/README.md"

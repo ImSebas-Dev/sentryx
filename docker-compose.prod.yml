@@ -1,0 +1,43 @@
+# Overrides para producción
+# Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Antes de usarlo (ver docs/seguridad.md):
+#   1. .env con secretos nuevos (scripts/dev/generate_env.py --production).
+#   2. Certificado TLS en infra/nginx/certs/fullchain.pem y privkey.pem
+#      (Let's Encrypt/certbot). Esa carpeta está en .gitignore.
+#   3. DJANGO_ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS y FRONTEND_URL con tu dominio https.
+
+services:
+  backend:
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_DEBUG=False
+
+  celery_worker:
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_DEBUG=False
+
+  celery_beat:
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_DEBUG=False
+
+  ml_engine:
+    environment:
+      - ML_TRAIN_SCRIPT=/opt/sentryx/scripts/ml/train_models.py
+      - ML_ENABLE_DOCS=False
+
+  # Build estático del frontend servido por nginx (sin servidor de Vite)
+  frontend:
+    build:
+      target: production
+
+  nginx:
+    # El puerto 80 (base) solo redirige a HTTPS
+    ports:
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+      - static_files:/var/www/static:ro

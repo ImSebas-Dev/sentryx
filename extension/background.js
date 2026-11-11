@@ -390,6 +390,17 @@ const handlers = {
 
   // ── Cerrar sesión / borrar credenciales ───────────────
   async LOGOUT() {
+    // Revocar el refresh en el servidor (lista negra); si no hay red, igual se borra aquí
+    const config = await getConfig();
+    if (config.refreshToken) {
+      try {
+        await fetchWithTimeout(`${config.backendUrl}/auth/logout/`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ refresh: config.refreshToken }),
+        }, 5000);
+      } catch { /* sin conexión con el backend */ }
+    }
     await chrome.storage.local.remove(['email', 'username', 'password', 'accessToken', 'refreshToken']);
     await chrome.storage.session.remove('pendingMfa');
     return { success: true };

@@ -6,16 +6,31 @@ Añade:
     - email_verification_token / password_reset_token
     - organization (para mostrar en el panel de admin)
 """
+import hashlib
 import uuid
 import secrets
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from datetime import timedelta
 
 
 def _token():
     return secrets.token_urlsafe(48)
+
+
+def hash_token(token: str) -> str:
+    """
+    Los tokens de los enlaces se guardan solo como SHA-256: quien lea la base de
+    datos (copia de seguridad, inyección SQL) no puede usarlos para entrar.
+    """
+    return hashlib.sha256((token or "").encode()).hexdigest()
+
+
+def _token_matches(stored: str, token: str) -> bool:
+    return bool(stored and token) and constant_time_compare(stored, hash_token(token))
 
 
 class ShieldUser(AbstractUser):
@@ -96,33 +111,44 @@ class ShieldUser(AbstractUser):
         return self.is_active and self.is_email_verified
 
     # ── Helpers de tokens ─────────────────────────────────
+    # rotate_* devuelve el token en claro UNA vez (para el correo) y guarda su hash.
     def rotate_verification_token(self):
-        self.email_verification_token   = _token()
+        token = _token()
+        self.email_verification_token   = hash_token(token)
         self.email_verification_sent_at = timezone.now()
         self.save(update_fields=["email_verification_token", "email_verification_sent_at"])
-        return self.email_verification_token
+        return token
 
     def is_verification_token_valid(self, token: str) -> bool:
-        if not self.email_verification_token or self.email_verification_token != token:
-            return False
         if not self.email_verification_sent_at:
             return False
-        # Token válido por 24 horas
-        return timezone.now() < self.email_verification_sent_at + timedelta(hours=24)
+        if not _token_matches(self.email_verification_token, token):
+            return False
+        expires = self.email_verification_sent_at + timedelta(
+            hours=settings.EMAIL_VERIFICATION_TIMEOUT_HOURS)
+        return timezone.now() < expires
 
     def rotate_reset_token(self):
-        self.password_reset_token   = _token()
+        token = _token()
+        self.password_reset_token   = hash_token(token)
         self.password_reset_sent_at = timezone.now()
         self.save(update_fields=["password_reset_token", "password_reset_sent_at"])
-        return self.password_reset_token
+        return token
 
     def is_reset_token_valid(self, token: str) -> bool:
-        if not self.password_reset_token or self.password_reset_token != token:
-            return False
         if not self.password_reset_sent_at:
             return False
-        # Token válido por 1 hora
-        return timezone.now() < self.password_reset_sent_at + timedelta(hours=1)
+        if not _token_matches(self.password_reset_token, token):
+            return False
+        expires = self.password_reset_sent_at + timedelta(
+            minutes=settings.PASSWORD_RESET_TIMEOUT_MINUTES)
+        return timezone.now() < expires
+
+    def email_cooldown_active(self, sent_at) -> bool:
+        """True si se envió un correo de cuenta hace menos de AUTH_EMAIL_COOLDOWN_SECONDS."""
+        cooldown = settings.AUTH_EMAIL_COOLDOWN_SECONDS
+        return bool(cooldown and sent_at
+                    and timezone.now() < sent_at + timedelta(seconds=cooldown))
 
     def clear_reset_token(self):
         self.password_reset_token   = ""

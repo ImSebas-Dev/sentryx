@@ -6,7 +6,6 @@ con el claim mfa_setup_required. Esos tokens solo sirven para leer el perfil
 y configurar el 2FA; cualquier otro endpoint responde 403 con
 code=mfa_setup_required (el frontend redirige a "Seguridad de la cuenta").
 """
-from django.conf import settings
 from rest_framework import exceptions
 from rest_framework_simplejwt.authentication import JWTAuthentication
 

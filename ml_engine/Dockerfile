@@ -5,8 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt \
-    && python -m nltk.downloader stopwords punkt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 RUN useradd --no-create-home --shell /bin/false mluser \
     && chown -R mluser:mluser /app

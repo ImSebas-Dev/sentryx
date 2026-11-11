@@ -9,6 +9,8 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../../test/mswServer'
 import { renderWithProviders, clearAuthTokens } from '../../test/testUtils'
 import LoginPage from '../LoginPage'
+import { tokenStore } from '../../services/api'
+import { mockSession } from '../../test/mswServer'
 
 // Mock de useNavigate para verificar redirecciones
 const mockNavigate = vi.fn()
@@ -54,7 +56,7 @@ describe('LoginPage', () => {
     })
   })
 
-  it('guarda tokens en localStorage tras login exitoso', async () => {
+  it('tras el login el access queda en memoria y el refresh en la cookie', async () => {
     const user = userEvent.setup()
     renderWithProviders(<LoginPage />)
 
@@ -63,8 +65,9 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /entrar/i }))
 
     await waitFor(() => {
-      expect(localStorage.getItem('access_token')).toBeTruthy()
-      expect(localStorage.getItem('refresh_token')).toBeTruthy()
+      expect(tokenStore.get()).toBeTruthy()
+      expect(mockSession.hasRefreshCookie).toBe(true)
+      expect(localStorage.getItem('refresh_token')).toBeNull()
     })
   })
 
@@ -93,7 +96,7 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/Correo o contraseña incorrectos/i).length).toBeGreaterThan(0)
     })
-    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(tokenStore.get()).toBeNull()
   })
 
   it('muestra el botón de submit con texto Entrar', async () => {

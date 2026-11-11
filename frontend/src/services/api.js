@@ -1,28 +1,65 @@
 /**
  * Sentryx — Cliente HTTP centralizado.
- * Gestiona tokens JWT, refresh automático y errores globales.
+ * Gestiona el token JWT, la renovación automática y los errores globales.
+ *
+ * Seguridad de la sesión:
+ *  - El access token (vida corta) vive SOLO en memoria (tokenStore). No se
+ *    guarda en localStorage: un XSS podría leerlo de ahí.
+ *  - El refresh token lo guarda el navegador en una cookie HttpOnly que el
+ *    JavaScript no puede leer. El backend la entrega porque cada petición lleva
+ *    la cabecera X-Sentryx-Client: web (ver backend/apps/users/cookies.py).
+ *  - Al recargar la página, AuthContext pide un access nuevo con esa cookie.
  */
 import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin + '/api/v1' : 'http://localhost/api/v1')
 
+// Identifica al panel web: el backend responde con el refresh en cookie HttpOnly
+const CLIENT_HEADERS = { 'X-Sentryx-Client': 'web' }
+
+// ── Access token en memoria ───────────────────────────────
+let accessToken = null
+export const tokenStore = {
+  get:   () => accessToken,
+  set:   token => { accessToken = token || null },
+  clear: () => { accessToken = null },
+}
+
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...CLIENT_HEADERS },
+  // Mismo origen: el navegador envía la cookie del refresh sin más configuración
+  withCredentials: false,
   timeout: 15000,
 })
 
 // ── Interceptor de request: adjuntar token JWT ────────────
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('access_token')
+  const token = tokenStore.get()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
+/**
+ * Pide un access token nuevo con la cookie del refresh. Si varias peticiones
+ * fallan a la vez, comparten la misma renovación: el refresh rota en cada uso
+ * y el anterior queda revocado, así que dos renovaciones en paralelo cerrarían
+ * la sesión.
+ */
+let refreshing = null
+export function refreshSession() {
+  if (!refreshing) {
+    refreshing = axios.post(`${BASE_URL}/auth/token/refresh/`, null, { headers: CLIENT_HEADERS })
+      .then(({ data }) => { tokenStore.set(data.access); return data.access })
+      .finally(() => { refreshing = null })
+  }
+  return refreshing
+}
+
 // Endpoints de login: un 401 aquí significa credenciales o código incorrectos,
 // no una sesión caducada. No intentar refresh ni redirigir (recargaría la
 // página y se perdería el mensaje de error).
-const AUTH_ENDPOINTS = ['/auth/token/', '/auth/mfa/verify/']
+const AUTH_ENDPOINTS = ['/auth/token/', '/auth/mfa/verify/', '/auth/token/refresh/', '/auth/logout/']
 const isAuthEndpoint = url => AUTH_ENDPOINTS.some(p => (url || '').endsWith(p))
 
 // Ruta de la página donde un admin sin 2FA debe configurarlo cuando la
@@ -40,21 +77,13 @@ api.interceptors.response.use(
     }
     if (err.response?.status === 401 && original && !original._retry && !isAuthEndpoint(original.url)) {
       original._retry = true
-      const refresh = localStorage.getItem('refresh_token')
-      if (refresh) {
-        try {
-          const { data } = await axios.post(`${BASE_URL}/auth/token/refresh/`,
-            { refresh })
-          localStorage.setItem('access_token', data.access)
-          original.headers.Authorization = `Bearer ${data.access}`
-          return api(original)
-        } catch {
-          // Refresh expirado → limpiar sesión (sin borrar preferencias como el tema)
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          window.location.href = '/login'
-        }
-      } else {
+      try {
+        const token = await refreshSession()
+        original.headers.Authorization = `Bearer ${token}`
+        return api(original)
+      } catch {
+        // Sin cookie o refresh caducado/revocado → volver a iniciar sesión
+        tokenStore.clear()
         window.location.href = '/login'
       }
     }
@@ -65,7 +94,8 @@ api.interceptors.response.use(
 // ── Helpers ───────────────────────────────────────────────
 export const authAPI = {
   login:   (credentials) => api.post('/auth/token/', credentials),
-  refresh: (refresh)     => api.post('/auth/token/refresh/', { refresh }),
+  refresh: ()            => refreshSession(),
+  logout:  ()            => api.post('/auth/logout/'),
   me:      ()            => api.get('/auth/me/'),
   register: (data) => api.post('/auth/register/', data),
   verifyEmail: (data) => api.post('/auth/verify-email/', data),

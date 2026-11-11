@@ -43,6 +43,21 @@ export const MOCK_TOKENS = {
   refresh: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.test_refresh',
 }
 
+/**
+ * Simula la cookie HttpOnly del refresh token, que jsdom no gestiona como un
+ * navegador real. El login y el 2FA la "ponen"; el logout la borra.
+ * Usar setAuthTokens()/clearAuthTokens() de testUtils en las pruebas.
+ */
+export const mockSession = { hasRefreshCookie: false }
+
+// El backend entrega el refresh en cookie (no en el cuerpo) al panel web
+const webTokens = request => {
+  mockSession.hasRefreshCookie = true
+  return request.headers.get('X-Sentryx-Client') === 'web'
+    ? { access: MOCK_TOKENS.access }
+    : MOCK_TOKENS
+}
+
 export const MOCK_ALERT = {
   id:            'alert-uuid-001',
   severity:      'CRITICAL',
@@ -148,10 +163,10 @@ export const handlers = [
     const body = await request.json()
     // El backend autentica por correo (USERNAME_FIELD = "email")
     if (body.email === MOCK_USER.email && body.password === 'correcta') {
-      return HttpResponse.json(MOCK_TOKENS)
+      return HttpResponse.json(webTokens(request))
     }
     if (body.email === 'admin@sentryx.test' && body.password === 'correcta') {
-      return HttpResponse.json(MOCK_TOKENS)
+      return HttpResponse.json(webTokens(request))
     }
     // Cuenta con verificación en dos pasos: no entrega JWT en el primer paso
     if (body.email === MOCK_MFA_EMAIL && body.password === 'correcta') {
@@ -170,9 +185,9 @@ export const handlers = [
         { error: 'La verificación expiró. Inicia sesión de nuevo.', code: 'mfa_token_expired' },
         { status: 401 })
     }
-    if (body.code === MOCK_TOTP) return HttpResponse.json(MOCK_TOKENS)
+    if (body.code === MOCK_TOTP) return HttpResponse.json(webTokens(request))
     if (body.recovery_code === MOCK_RECOVERY_CODE) {
-      return HttpResponse.json({ ...MOCK_TOKENS, recovery_codes_remaining: 7 })
+      return HttpResponse.json({ ...webTokens(request), recovery_codes_remaining: 7 })
     }
     return HttpResponse.json(
       { error: 'El código no es válido.', code: 'mfa_invalid_code', attempts_left: 4 },
@@ -201,9 +216,17 @@ export const handlers = [
     return HttpResponse.json({ message: 'Verificación en dos pasos desactivada.' })
   }),
 
-  http.post('/api/v1/auth/token/refresh/', () =>
-    HttpResponse.json({ access: MOCK_TOKENS.access })
-  ),
+  http.post('/api/v1/auth/token/refresh/', ({ request }) => {
+    if (!mockSession.hasRefreshCookie || request.headers.get('X-Sentryx-Client') !== 'web') {
+      return HttpResponse.json({ detail: 'La sesión expiró.', code: 'token_not_valid' }, { status: 401 })
+    }
+    return HttpResponse.json({ access: MOCK_TOKENS.access })
+  }),
+
+  http.post('/api/v1/auth/logout/', () => {
+    mockSession.hasRefreshCookie = false
+    return new HttpResponse(null, { status: 205 })
+  }),
 
   http.get('/api/v1/auth/me/', ({ request }) => {
     const auth = request.headers.get('Authorization')

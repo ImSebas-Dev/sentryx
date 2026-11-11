@@ -1,32 +1,41 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authAPI } from '../services/api'
+import { authAPI, tokenStore } from '../services/api'
 
 const AuthContext = createContext(null)
 
-// Solo se borran los tokens: otras preferencias (p. ej. el tema) se conservan
+/**
+ * Borra la sesión local. El access token solo vive en memoria; el refresh está
+ * en una cookie HttpOnly que solo el backend puede borrar (logout).
+ * Limpia también los tokens que versiones anteriores guardaban en localStorage.
+ */
 export function clearSession() {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('refresh_token')
+  tokenStore.clear()
+  try {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+  } catch { /* almacenamiento bloqueado */ }
 }
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Cargar perfil si hay token guardado
+  // Al cargar la página: si no hay access en memoria, pedir uno con la cookie
+  // del refresh. Sin cookie válida, el usuario simplemente no tiene sesión.
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (!token) { setLoading(false); return }
-    authAPI.me()
-      .then(r => setUser(r.data))
+    let active = true
+    const restore = tokenStore.get() ? Promise.resolve() : authAPI.refresh()
+    restore
+      .then(() => authAPI.me())
+      .then(r => { if (active) setUser(r.data) })
       .catch(() => clearSession())
-      .finally(() => setLoading(false))
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [])
 
-  // Guardar el par JWT y cargar el perfil. Paso final de ambos caminos de login.
+  // Guardar el access token y cargar el perfil. Paso final de ambos caminos de login.
   const startSession = useCallback(async (tokens) => {
-    localStorage.setItem('access_token',  tokens.access)
-    localStorage.setItem('refresh_token', tokens.refresh)
+    tokenStore.set(tokens.access)
     const me = await authAPI.me()
     setUser(me.data)
     return me.data
@@ -60,13 +69,14 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Al activar el 2FA con un token mfa_setup_required el backend entrega
-  // tokens nuevos sin esa marca: reemplazarlos sin cerrar sesión.
+  // un access nuevo sin esa marca (y renueva la cookie): reemplazarlo.
   const replaceTokens = useCallback(tokens => {
-    if (tokens?.access)  localStorage.setItem('access_token',  tokens.access)
-    if (tokens?.refresh) localStorage.setItem('refresh_token', tokens.refresh)
+    if (tokens?.access) tokenStore.set(tokens.access)
   }, [])
 
-  const logout = useCallback(() => {
+  // Revoca el refresh en el servidor (lista negra + borra la cookie)
+  const logout = useCallback(async () => {
+    try { await authAPI.logout() } catch { /* sin red: igual se cierra localmente */ }
     clearSession()
     setUser(null)
   }, [])

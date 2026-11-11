@@ -8,6 +8,7 @@ import { http, HttpResponse } from 'msw'
 import { server, MOCK_MFA_EMAIL, MOCK_TOTP, MOCK_RECOVERY_CODE, MOCK_USER } from '../../test/mswServer'
 import { renderWithProviders, clearAuthTokens } from '../../test/testUtils'
 import LoginPage from '../LoginPage'
+import { tokenStore } from '../../services/api'
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -38,7 +39,7 @@ describe('LoginPage — verificación en dos pasos', () => {
     expect(input).toHaveAttribute('type', 'text')
     expect(input).toHaveAttribute('maxlength', '6')
     expect(input).toHaveAccessibleDescription(/6 dígitos/i)
-    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(tokenStore.get()).toBeNull()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
@@ -56,7 +57,7 @@ describe('LoginPage — verificación en dos pasos', () => {
     await user.click(screen.getByRole('button', { name: /^verificar$/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'))
-    expect(localStorage.getItem('access_token')).toBeTruthy()
+    expect(tokenStore.get()).toBeTruthy()
   })
 
   it('solo acepta dígitos al escribir o pegar', async () => {
@@ -73,7 +74,7 @@ describe('LoginPage — verificación en dos pasos', () => {
     await user.click(screen.getByRole('button', { name: /^verificar$/i }))
 
     expect(await screen.findByText(/Te quedan 4 intentos/i)).toBeInTheDocument()
-    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(tokenStore.get()).toBeNull()
   })
 
   it('permite usar un código de recuperación', async () => {

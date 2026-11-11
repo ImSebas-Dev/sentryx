@@ -1,17 +1,19 @@
 # ── Django core ──────────────────────────────────────────
-Django==4.2.16
-djangorestframework==3.15.2
-djangorestframework-simplejwt==5.3.1
-django-cors-headers==4.4.0
-django-filter==24.3
-django-axes==7.0.0
-django-celery-beat==2.7.0
-django-celery-results==2.5.1
+# Django 5.2 LTS (soporte hasta abril de 2028). La 4.2 dejó de recibir
+# parches de seguridad en abril de 2026 y la 4.2.16 tenía decenas de CVE.
+Django==5.2.19
+djangorestframework==3.18.3
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+django-filter==26.2
+django-axes==9.0.0
+django-celery-beat==2.9.0
+django-celery-results==2.6.0
 
 # ── Documentación OpenAPI ─────────────────────────────────
-drf-spectacular==0.27.2
+drf-spectacular==0.30.0
 # Swagger UI servido desde el propio backend (sin CDN)
-drf-spectacular-sidecar==2024.7.1
+drf-spectacular-sidecar==2026.10.1
 
 # ── BD / Caché ────────────────────────────────────────────
 psycopg2-binary==2.9.9
@@ -30,15 +32,16 @@ gunicorn==23.0.0
 
 # ── Utilidades ────────────────────────────────────────────
 python-decouple==3.8
-PyJWT==2.9.0
+# Dependencia de simplejwt; fijada para no instalar una versión con CVE conocidos
+PyJWT==2.15.1
 httpx==0.27.2
-pydantic==2.9.2
-bcrypt==4.1.3
+# Hash de contraseñas Argon2id (PASSWORD_HASHERS)
+argon2-cffi==25.1.0
 
 # ── Autenticación de dos factores (TOTP) ─────────────────
 pyotp==2.9.0
 qrcode[pil]==8.0
-cryptography==43.0.3
+cryptography==50.0.2
 
 # ── Escudo de pagos: lectura segura de XML de facturas (XXE) ──
 defusedxml==0.7.1
@@ -47,7 +50,6 @@ defusedxml==0.7.1
 reportlab==4.2.5
 
 # ── Testing ───────────────────────────────────────────────
-pytest==8.3.3
-pytest-django==4.9.0
-pytest-cov==5.0.0
-factory-boy==3.3.1
+pytest==9.2.0
+pytest-django==4.14.0
+pytest-cov==7.1.0

@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../test/testUtils'
 import { server, MOCK_USER } from '../../test/mswServer'
 import PaymentShieldPanel from '../PaymentShieldPanel'
 import { computeDv, isValidNit, maskAccount } from '../../utils/nit'
+import { tokenStore } from '../../services/api'
 
 const RISKY = {
   check_id: 'check-1', risky: true, intent_detected: true, verdict: 'lookalike_domain',
@@ -57,7 +58,7 @@ describe('PaymentShieldPanel', () => {
   })
 
   it('registra la verificación telefónica', async () => {
-    localStorage.setItem('access_token', 'token')
+    tokenStore.set('token')
     let body = null
     server.use(
       http.get('*/auth/me/', () => HttpResponse.json(MOCK_USER)),

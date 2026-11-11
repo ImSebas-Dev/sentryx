@@ -25,9 +25,7 @@ from apps.users.permissions import IsAnalystOrAbove
 TAG = "Escudo de pagos"
 
 
-def client_ip(request):
-    return (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", ""))
+from apps.audit.utils import client_ip  # noqa: E402  (IP real detrás de nginx)
 
 
 class SupplierPermission(BasePermission):

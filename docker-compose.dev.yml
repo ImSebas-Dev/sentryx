@@ -1,7 +1,18 @@
 # Overrides para desarrollo local
-# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up   (make up)
+#
+# Los puertos de depuración se publican SOLO en 127.0.0.1: no quedan
+# accesibles desde otras máquinas de la red (wifi de la universidad, etc.).
 
 services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
   backend:
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -10,14 +21,41 @@ services:
     environment:
       - DJANGO_DEBUG=True
       - DJANGO_SETTINGS_MODULE=config.settings.development
+    volumes:
+      - ./backend:/app
+      - static_files:/app/staticfiles
+    ports:
+      - "127.0.0.1:8000:8000"
 
   ml_engine:
     command: uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+    environment:
+      - ML_TRAIN_SCRIPT=/opt/sentryx/scripts/ml/train_models.py
+      - ML_ENABLE_DOCS=True
+    volumes:
+      - ./ml_engine:/app
+      - ml_models:/app/models/trained
+      - ./scripts/ml:/opt/sentryx/scripts/ml:ro
+    ports:
+      - "127.0.0.1:8001:8001"
 
   celery_worker:
     command: celery -A config worker --loglevel=debug --concurrency=1 -Q default,threat_intel,alerts
+    volumes:
+      - ./backend:/app
 
-  # Monitor de tareas Celery — solo en dev
+  celery_beat:
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"
+
+  # Monitor de tareas Celery — solo en dev y solo desde esta máquina
   flower:
     build:
       context: ./backend
@@ -26,7 +64,7 @@ services:
     command: celery -A config flower --port=5555
     env_file: .env
     ports:
-      - "5555:5555"
+      - "127.0.0.1:5555:5555"
     depends_on:
       - redis
       - celery_worker

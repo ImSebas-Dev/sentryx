@@ -19,7 +19,7 @@ import io
 from calendar import monthrange
 from datetime import datetime, time, timedelta
 
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Max
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
@@ -431,7 +431,7 @@ def render_pdf(data) -> bytes:
     meta = [
         ["Usuario", u["email"], "Rol", str(u["role"])],
         ["Organización", u["organization"] or "-",
-         "Alcance", "Todos los usuarios" if u["is_admin"] else "Alertas propias"],
+         "Alcance", "Toda la organización" if u["is_admin"] else "Alertas propias"],
         ["Generado", f"{_fmt_date(gen.date())} {gen.strftime('%H:%M')}",
          "Zona horaria", "America/Bogota"],
     ]

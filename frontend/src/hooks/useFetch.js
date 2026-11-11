@@ -24,7 +24,7 @@ export function useFetch(fetchFn, deps = []) {
     } finally {
       if (!isSilent) setLoading(false)
     }
-  }, deps) // eslint-disable-line
+  }, deps) // deps las define quien llama al hook
 
   useEffect(() => { execute() }, [execute])
 

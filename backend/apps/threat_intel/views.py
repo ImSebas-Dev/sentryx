@@ -2,11 +2,11 @@
 from rest_framework import serializers, generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import (
-    extend_schema, inline_serializer, OpenApiExample, OpenApiParameter, OpenApiResponse,
-)
+from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 
+from apps.audit.models        import AuditLog
+from apps.audit.utils         import client_ip
 from apps.threat_intel.models import IOC
 from apps.users.permissions   import IsAnalystOrAbove
 
@@ -24,11 +24,24 @@ class IOCSerializer(serializers.ModelSerializer):
 
 
 class IOCCreateSerializer(serializers.ModelSerializer):
-    """Para añadir IOCs manuales desde el dashboard (RFC-023)."""
+    """
+    Para añadir IOCs manuales desde el dashboard (RFC-023). La lista de IOCs es
+    compartida por todas las empresas: limita tamaño y forma de cada campo.
+    """
+    tags = serializers.ListField(child=serializers.CharField(max_length=50),
+                                 max_length=20, required=False, default=list)
+
     class Meta:
         model  = IOC
         fields = ["ioc_type", "value", "threat_level", "mitre_technique",
                     "description", "tags", "brand_targeted"]
+        extra_kwargs = {"description": {"max_length": 2000}}
+
+    def validate_value(self, value):
+        value = value.strip()
+        if not value or any(ord(ch) < 32 for ch in value):
+            raise serializers.ValidationError("Escribe un solo indicador, sin saltos de línea.")
+        return value
 
 
 class IOCCheckSerializer(serializers.Serializer):
@@ -54,6 +67,9 @@ class IOCListCreateView(generics.ListCreateAPIView):
         ser = IOCCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         ioc = ser.save(source=IOC.Source.MANUAL, is_active=True)
+        AuditLog.log(action=AuditLog.Action.CREATE, resource="threat_intel.ioc",
+                     resource_id=str(ioc.pk), user=request.user, ip=client_ip(request),
+                     detail={"ioc_type": ioc.ioc_type})
         return Response(IOCSerializer(ioc).data, status=status.HTTP_201_CREATED)
 
 

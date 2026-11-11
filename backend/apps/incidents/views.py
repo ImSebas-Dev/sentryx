@@ -1,9 +1,8 @@
 """Sentryx v2 — Views de incidentes."""
 import logging
 from django.utils import timezone
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiExample
 
 from apps.incidents.models import Incident, IncidentTimeline
@@ -11,22 +10,24 @@ from apps.incidents.serializers import (
     IncidentListSerializer, IncidentDetailSerializer,
     IncidentCreateSerializer, IncidentUpdateSerializer,
 )
+from apps.audit.utils import client_ip
 from apps.audit.models     import AuditLog
-from apps.users.permissions import IsAnalystOrAbove, IsAuthenticatedReadOnly
+from apps.users.organization import scope_to_user
+from apps.users.permissions import IsAuthenticatedReadOnly
 
 logger = logging.getLogger(__name__)
 
 
 def incident_queryset(user):
     """
-    Incidentes visibles con aislamiento por usuario: el admin ve todos; el
-    resto, los que creó o tiene asignados. Usar siempre esta función (la
-    reutilizan los informes) para que listado, detalle e informes coincidan.
+    Incidentes visibles: el admin ve los de su empresa (creados por alguien de
+    ella); el resto, los que creó o tiene asignados. Usar siempre esta función
+    (la reutilizan los informes) para que listado, detalle e informes coincidan.
     """
     from django.db.models import Q
     qs = Incident.objects.select_related("assigned_to", "created_by")
     if getattr(user, "is_admin", False):
-        return qs
+        return scope_to_user(qs, user, owner_field="created_by")
     return qs.filter(Q(created_by=user) | Q(assigned_to=user))
 
 
@@ -65,8 +66,7 @@ class IncidentListCreateView(generics.ListCreateAPIView):
         incident = ser.save()
 
         # Registro en auditoría
-        ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-                or request.META.get("REMOTE_ADDR", ""))
+        ip = client_ip(request)
         AuditLog.log(AuditLog.Action.CREATE, "incidents",
                         user=request.user, resource_id=str(incident.pk), ip=ip)
 
@@ -123,8 +123,7 @@ class IncidentDetailView(generics.RetrieveUpdateAPIView):
                     closed_at=timezone.now()
                 )
 
-            ip = (request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-                    or request.META.get("REMOTE_ADDR", ""))
+            ip = client_ip(request)
             AuditLog.log(AuditLog.Action.UPDATE, "incidents",
                             user=request.user, resource_id=str(incident.pk), ip=ip,
                             detail={"old_status": old_status, "new_status": new_status})

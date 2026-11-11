@@ -68,11 +68,15 @@ bash scripts/dev/setup.sh
 | Dashboard | http://localhost |
 | API REST | http://localhost/api/v1/ |
 | API docs (OpenAPI / Swagger) | http://localhost/api/v1/docs/ |
-| ML Engine docs | http://localhost/ml/docs |
+| ML Engine docs (solo desarrollo, desde esta máquina) | http://127.0.0.1:8001/docs |
 | Django Admin | http://localhost/admin/ |
-| Flower | http://localhost:5555 |
+| Flower (solo desarrollo, desde esta máquina) | http://127.0.0.1:5555 |
 
-Credenciales de desarrollo: `admin@sentryx.local` / `admin123` y `analista@sentryx.local` / `analista123`.
+Usuarios de desarrollo: `admin@sentryx.local` y `analista@sentryx.local`. `setup.sh` les asigna una
+contraseña aleatoria y la muestra una sola vez al terminar.
+
+Para desplegar en un servidor sigue [docs/seguridad.md](docs/seguridad.md): HTTPS, secretos nuevos
+(`scripts/dev/generate_env.py --production`) y `docker-compose.prod.yml`.
 
 Para actualizar una instalación anterior, compara tu `.env` con [`.env.example`](.env.example):
 `setup.sh` avisa de las variables que faltan (por ejemplo `MFA_ENCRYPTION_KEY`).

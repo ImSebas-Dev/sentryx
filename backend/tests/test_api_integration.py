@@ -132,11 +132,20 @@ class TestAlertListEndpoint(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["count"], 3)
 
-    def test_admin_sees_all_alerts(self):
-        admin = make_user("admin01@sentryx.local", role="admin")
+    def test_admin_sees_only_alerts_of_own_organization(self):
+        User.objects.filter(pk__in=[self.viewer.pk, self.other.pk]).update(organization="Pyme A")
+        outsider = make_user("fuera@otra.co", organization="Pyme B")
+        _alert(outsider, title="De otra empresa")
+        admin = make_user("admin01@sentryx.local", role="admin", organization="Pyme A")
         self.client.force_authenticate(admin)
         resp = self.client.get("/api/v1/alerts/")
         self.assertEqual(resp.data["count"], 4)
+        self.assertNotIn("De otra empresa", {a["title"] for a in resp.data["results"]})
+
+    def test_platform_superuser_sees_all_alerts(self):
+        root = make_user("root@sentryx.local", role="admin", is_superuser=True, is_staff=True)
+        self.client.force_authenticate(root)
+        self.assertEqual(self.client.get("/api/v1/alerts/").data["count"], 4)
 
     def test_filter_by_phishing_type(self):
         resp = self.client.get("/api/v1/alerts/?phishing_type=bec")

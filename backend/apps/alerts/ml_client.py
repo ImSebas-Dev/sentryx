@@ -17,28 +17,10 @@ def _headers() -> dict:
     }
 
 
-async def analyze_email_async(email_payload: dict) -> dict:
-    """
-    Llama al endpoint /analyze/email del ML Engine de forma asíncrona.
-    Timeout de 10s — el análisis debería completarse en < 3s.
-    """
-    url = f"{settings.ML_ENGINE_URL}/analyze/email"
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json=email_payload, headers=_headers())
-            resp.raise_for_status()
-            return resp.json()
-    except httpx.TimeoutException:
-        raise MLEngineError("ML Engine no respondió en 10 segundos.")
-    except httpx.HTTPStatusError as e:
-        raise MLEngineError(f"ML Engine retornó {e.response.status_code}: {e.response.text}")
-    except httpx.ConnectError:
-        raise MLEngineError("No se pudo conectar al ML Engine. ¿Está corriendo?")
-
-
 def analyze_email_sync(email_payload: dict) -> dict:
     """
-    Versión síncrona — usada desde tareas Celery.
+    Llama a /analyze/email del ML Engine (timeout 10 s; el análisis tarda < 3 s).
+    Los mensajes de MLEngineError son internos: no los devuelvas al cliente.
     """
     url = f"{settings.ML_ENGINE_URL}/analyze/email"
     try:

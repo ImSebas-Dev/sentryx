@@ -1,7 +1,6 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 from apps.users.views import (
-    ShieldTokenObtainPairView, UserMeView, UserListView,
+    ShieldTokenObtainPairView, ShieldTokenRefreshView, LogoutView, UserMeView, UserListView,
     RegisterView, VerifyEmailView, ResendVerificationView,
     PasswordResetRequestView, PasswordResetConfirmView,
 )
@@ -12,7 +11,8 @@ from apps.users.mfa_views import (
 urlpatterns = [
     # Auth
     path("token/",                    ShieldTokenObtainPairView.as_view(), name="token_obtain"),
-    path("token/refresh/",            TokenRefreshView.as_view(),          name="token_refresh"),
+    path("token/refresh/",            ShieldTokenRefreshView.as_view(),    name="token_refresh"),
+    path("logout/",                   LogoutView.as_view(),                name="logout"),
     # Verificación en dos pasos (TOTP)
     path("mfa/setup/",                MFASetupView.as_view(),              name="mfa_setup"),
     path("mfa/enable/",               MFAEnableView.as_view(),             name="mfa_enable"),
