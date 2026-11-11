@@ -15,6 +15,7 @@ import {
   EmptyState, ErrorBanner, LoadingScreen, MessageBar, PageHeader, SeverityBadge, Spinner, tone,
 } from '../components/UI'
 import Modal from '../components/Modal'
+import PageGuide from '../components/PageGuide'
 import MfaCodeField from '../components/MfaCodeField'
 import { REQUEST_STATUS } from '../components/FourEyesPanel'
 
@@ -56,6 +57,7 @@ function DecisionModal({ request, approve, onClose, onDone }) {
   return (
     <Modal title={approve ? 'Aprobar solicitud' : 'Rechazar solicitud'} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        <PageGuide id="approval-decision" />
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         {request.requires_totp && (
           <MfaCodeField id="decision-totp" label="Código de verificación" value={code}
@@ -205,7 +207,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="page">
-      <PageHeader icon={Users} title="Aprobaciones"
+      <PageHeader icon={Users} title="Aprobaciones" guide="approvals"
         description="Correos de alto riesgo que necesitan la revisión de una segunda persona." />
 
       {user && !user.mfa_enabled && tab === 'to_approve' && (

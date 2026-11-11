@@ -49,6 +49,12 @@
       <span class="state-icon tone-neutral"><svg class="icon"><use href="#i-inbox"/></svg></span>
       <p class="state-title">Ningún correo abierto</p>
       <p id="no-email-desc" class="state-desc">Abre un correo en Gmail u Outlook<br>y vuelve a hacer clic aquí.</p>
+      <ol class="guide-steps" aria-label="Cómo usar la extensión">
+        <li>La primera vez, inicia sesión con el botón de configuración, arriba a la derecha.</li>
+        <li>Abre el correo que quieres revisar en Gmail u Outlook.</li>
+        <li>Haz clic en el ícono de Sentryx en tu navegador.</li>
+        <li>Pulsa «Analizar correo».</li>
+      </ol>
     </section>
 
     <!-- Estado: correo detectado, listo para analizar -->
@@ -76,6 +82,11 @@
         <svg class="icon icon-sm"><use href="#i-lock"/></svg>
         Los datos se seudonimizan antes de guardarse
       </p>
+      <ol class="guide-steps" aria-label="Cómo analizar este correo">
+        <li>Comprueba que el remitente y el asunto sean los del correo abierto.</li>
+        <li>Pulsa «Analizar correo» antes de abrir sus enlaces o adjuntos.</li>
+        <li>Si el correo es riesgoso, verás un aviso sobre él en Gmail u Outlook. Sigue sus pasos.</li>
+      </ol>
     </section>
 
     <!-- Estado: analizando -->
@@ -141,6 +152,7 @@
 
       <!-- Estado de la alerta -->
       <p id="result-alert-status" class="alert-status"></p>
+      <p class="guide-hint">Un puntaje más alto significa más riesgo. Si no estás seguro, no abras enlaces ni adjuntos y pregunta a tu administrador.</p>
 
       <!-- Botones de acción -->
       <div class="actions">
@@ -176,6 +188,12 @@
       </button>
       <h2 class="settings-title">Configuración</h2>
     </div>
+
+    <ol class="guide-steps" aria-label="Cómo conectar la extensión">
+      <li>Deja la URL del backend como está, salvo que tu administrador te indique otra.</li>
+      <li>Escribe el correo y la contraseña con los que entras a Sentryx.</li>
+      <li>Pulsa «Guardar y conectar». Si tienes verificación en dos pasos, escribe también el código.</li>
+    </ol>
 
     <div class="setting-group">
       <label class="setting-label" for="input-backend-url">URL del backend</label>

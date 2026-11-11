@@ -4,7 +4,9 @@ Cubre los endpoints principales sin llamar al ML Engine real
 (se usa mock del cliente HTTP).
 """
 from unittest.mock import patch
-from django.test import TestCase
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -85,13 +87,13 @@ class TestAuthEndpoints(TestCase):
         })
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_login_pending_approval_returns_403(self):
-        make_user("pendiente@sentryx.local", is_approved=False)
+    def test_login_unverified_email_returns_403(self):
+        make_user("sinverificar@sentryx.local", is_email_verified=False)
         resp = self.client.post("/api/v1/auth/token/", {
-            "email": "pendiente@sentryx.local", "password": "SecurePass123!"
+            "email": "sinverificar@sentryx.local", "password": "SecurePass123!"
         })
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(resp.data["code"], "account_pending_approval")
+        self.assertEqual(resp.data["code"], "email_not_verified")
 
     def test_me_returns_profile(self):
         self.client.force_authenticate(self.user)
@@ -275,3 +277,141 @@ class TestAuditLogImmutability(TestCase):
                            user=self.user, ip="192.168.1.100")
         self.assertNotEqual(log.ip_hash, "192.168.1.100")
         self.assertEqual(len(log.ip_hash), 64)
+
+
+@patch("apps.users.views.send_verification_email", return_value=True)
+class TestOpenRegistration(TestCase):
+    """Cualquiera se registra sin aprobación, pero debe verificar su correo."""
+
+    PASSWORD = "SecurePass123!"
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def register(self, email="nueva@mipyme.co", organization="Mi Pyme"):
+        return self.client.post("/api/v1/auth/register/", {
+            "email": email, "password": self.PASSWORD,
+            "organization": organization, "accepted_terms": True,
+        })
+
+    def login(self, email="nueva@mipyme.co"):
+        return self.client.post("/api/v1/auth/token/", {"email": email, "password": self.PASSWORD})
+
+    def verify(self, email="nueva@mipyme.co"):
+        token = User.objects.get(email=email).rotate_verification_token()
+        return self.client.post("/api/v1/auth/verify-email/", {"email": email, "token": token})
+
+    def test_new_account_logs_in_after_verifying_email(self, send_mail):
+        self.assertEqual(self.register().status_code, status.HTTP_201_CREATED)
+        send_mail.assert_called_once()
+
+        blocked = self.login()
+        self.assertEqual(blocked.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(blocked.data["code"], "email_not_verified")
+
+        self.assertEqual(self.verify().status_code, status.HTTP_200_OK)
+        self.assertIn("access", self.login().data)
+
+    def test_invalid_token_does_not_verify(self, _):
+        self.register()
+        resp = self.client.post("/api/v1/auth/verify-email/",
+                                {"email": "nueva@mipyme.co", "token": "falso"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.login().status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_new_account_is_analyst_even_if_it_asks_for_admin(self, _):
+        self.client.post("/api/v1/auth/register/", {
+            "email": "nueva@mipyme.co", "password": self.PASSWORD,
+            "accepted_terms": True, "role": "admin", "is_staff": True, "is_superuser": True,
+        })
+        user = User.objects.get(email="nueva@mipyme.co")
+        self.assertEqual(user.role, "analyst")
+        self.assertFalse(user.is_staff or user.is_superuser)
+
+    def test_new_organization_is_kept(self, _):
+        self.register()
+        self.assertEqual(User.objects.get(email="nueva@mipyme.co").organization, "Mi Pyme")
+
+    def test_cannot_join_existing_organization_by_typing_its_name(self, _):
+        make_user("jefa@mipyme.co", role="admin", organization="Mi Pyme")
+        for i, name in enumerate(["Mi Pyme", "mi pyme", "  MI PYME  "]):
+            email = f"intruso{i}@otra.co"
+            self.assertEqual(self.register(email, name).status_code, status.HTTP_201_CREATED)
+            self.assertEqual(User.objects.get(email=email).organization, "")
+
+    def test_response_does_not_reveal_if_organization_exists(self, _):
+        fresh = self.register("uno@otra.co", "Empresa Libre")
+        make_user("jefa@mipyme.co", organization="Mi Pyme")
+        taken = self.register("dos@otra.co", "Mi Pyme")
+        self.assertEqual(fresh.data["message"], taken.data["message"])
+        self.assertEqual(set(fresh.data), set(taken.data))
+
+    def test_deactivated_account_cannot_log_in(self, _):
+        make_user("nueva@mipyme.co", is_active=False)
+        self.assertEqual(self.login().status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_approval_endpoints_are_gone(self, _):
+        self.client.force_authenticate(make_user("jefa@mipyme.co", role="admin"))
+        self.assertEqual(self.client.get("/api/v1/auth/users/pending/").status_code, 404)
+        self.assertEqual(self.client.post("/api/v1/auth/users/approve/").status_code, 404)
+
+
+class TestRemoveApprovalMigration(TransactionTestCase):
+    """Las cuentas sin aprobar podrán entrar: su organización no estaba validada."""
+
+    BEFORE = [("users", "0005_shielduser_mfa_enabled_shielduser_mfa_enabled_at_and_more")]
+    AFTER  = [("users", "0006_remove_shielduser_is_approved")]
+
+    def migrate(self, target):
+        executor = MigrationExecutor(connection)
+        executor.migrate(target)
+        return MigrationExecutor(connection).loader.project_state(target).apps
+
+    def tearDown(self):
+        self.migrate(self.AFTER)
+
+    def make(self, model, email, **fields):
+        return model.objects.create(username=email.split("@")[0], email=email,
+                                    organization="Mi Pyme", **fields)
+
+    def test_forward_and_backward(self):
+        old = self.migrate(self.BEFORE).get_model("users", "ShieldUser")
+        self.make(old, "aprobada@mipyme.co", is_email_verified=True, is_approved=True)
+        self.make(old, "pendiente@otra.co", is_email_verified=True, is_approved=False)
+        self.make(old, "rechazada@otra.co", is_email_verified=True, is_approved=False, is_active=False)
+
+        self.migrate(self.AFTER)
+        org = lambda email: User.objects.get(email=email).organization
+        self.assertEqual(org("aprobada@mipyme.co"), "Mi Pyme")
+        self.assertEqual(org("pendiente@otra.co"), "")
+        self.assertEqual(org("rechazada@otra.co"), "")
+        self.assertFalse(User.objects.get(email="rechazada@otra.co").is_active)
+
+        old = self.migrate(self.BEFORE).get_model("users", "ShieldUser")
+        self.assertFalse(old.objects.filter(is_approved=False).exists())
+
+
+class TestShieldUserAdmin(TestCase):
+    """El admin de Django es donde se agrega a alguien a su empresa."""
+
+    def setUp(self):
+        self.root = User.objects.create_superuser(
+            "root", "root@sentryx.local", "SecurePass123!", is_email_verified=True)
+        self.client.force_login(self.root)
+        self.user = make_user("beto@mipyme.co")
+        self.url = f"/admin/users/shielduser/{self.user.pk}/change/"
+
+    def test_change_page_hides_secrets(self):
+        page = self.client.get(self.url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'name="organization"')
+        for secret in ("mfa_secret", "mfa_recovery_codes", "email_verification_token", "password_reset_token"):
+            self.assertNotContains(page, secret)
+
+    def test_list_and_add_pages_load(self):
+        self.assertEqual(self.client.get("/admin/users/shielduser/").status_code, 200)
+        self.assertEqual(self.client.get("/admin/users/shielduser/add/").status_code, 200)
+
+    def test_analyst_cannot_open_it(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(self.url).status_code, 302)

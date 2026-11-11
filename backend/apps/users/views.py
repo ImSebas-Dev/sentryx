@@ -1,6 +1,6 @@
 """
 Sentryx v2 — Views de autenticación ampliadas.
-Registro por correo, verificación, aprobación admin, recuperación de contraseña.
+Registro por correo, verificación y recuperación de contraseña.
 """
 import logging
 from django.conf import settings
@@ -18,9 +18,7 @@ from drf_spectacular.types import OpenApiTypes
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.users.email_service import (
-    send_verification_email, send_approval_notification,
-    send_pending_approval_email, send_admin_new_user_alert,
-    send_password_reset_email,
+    send_verification_email, send_password_reset_email,
 )
 from apps.users.serializers import (
     ShieldTokenObtainPairSerializer, UserMeSerializer, UserListSerializer,
@@ -68,9 +66,17 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     new_password= serializers.CharField(min_length=10, write_only=True)
 
 
-class ApproveUserSerializer(serializers.Serializer):
-    user_id  = serializers.UUIDField()
-    approved = serializers.BooleanField()
+def claimable_organization(name: str) -> str:
+    """
+    Devuelve la organización que puede tomar una cuenta nueva. Nadie revisa el
+    registro y la organización da acceso a los datos de la empresa, así que un
+    nombre ya usado queda vacío: un admin agrega a la persona desde /admin/.
+    No avises en la respuesta que el nombre existe: revelaría qué empresas son clientes.
+    """
+    name = (name or "").strip()
+    if name and User.objects.filter(organization__iexact=name).exists():
+        return ""
+    return name
 
 
 # ── Views ─────────────────────────────────────────────────
@@ -79,7 +85,7 @@ class ApproveUserSerializer(serializers.Serializer):
 class RegisterView(APIView):
     """
     POST /api/v1/auth/register/
-    Registro abierto. Crea cuenta inactiva hasta verificación + aprobación.
+    Registro abierto. La cuenta no puede iniciar sesión hasta verificar el correo.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -100,10 +106,9 @@ class RegisterView(APIView):
             username      = username,
             email         = d["email"],
             password      = d["password"],
-            organization  = d.get("organization", ""),
+            organization  = claimable_organization(d.get("organization", "")),
             role          = User.Role.ANALYST,
-            is_active     = True,        # activo pero sin acceso hasta aprobación
-            is_approved   = False,
+            is_active     = True,        # activo pero sin acceso hasta verificar el correo
             is_email_verified = False,
             accepted_terms    = True,
             accepted_terms_at = timezone.now(),
@@ -114,15 +119,10 @@ class RegisterView(APIView):
         if not sent:
             logger.error(f"[Register] No se pudo enviar correo a {user.email}")
 
-        # Notificar a todos los admins
-        admins = User.objects.filter(role=User.Role.ADMIN, is_active=True)
-        for admin in admins:
-            send_admin_new_user_alert(user, admin.email)
-
         return Response({
             "message": (
                 "Cuenta creada. Revisa tu correo para verificar tu dirección. "
-                "Una vez verificada, un administrador revisará tu solicitud."
+                "Una vez verificada, ya puedes iniciar sesión."
             ),
             "email": user.email,
         }, status=status.HTTP_201_CREATED)
@@ -160,12 +160,7 @@ class VerifyEmailView(APIView):
         user.email_verification_token = ""
         user.save(update_fields=["is_email_verified", "email_verification_token"])
 
-        send_pending_approval_email(user)
-
-        return Response({
-            "message": "Correo verificado. Tu cuenta está pendiente de aprobación por el administrador.",
-            "pending_approval": True,
-        })
+        return Response({"message": "Correo verificado. Ya puedes iniciar sesión."})
 
 
 @extend_schema(tags=["auth"], request=PasswordResetRequestSerializer, responses={200: MessageResponseSerializer})
@@ -245,69 +240,6 @@ class PasswordResetConfirmView(APIView):
         return Response({"message": "Contraseña restablecida exitosamente."})
 
 
-@extend_schema(tags=["auth"], request=ApproveUserSerializer, responses={200: MessageResponseSerializer})
-class ApproveUserView(APIView):
-    """
-    POST /api/v1/auth/users/approve/
-    Admin aprueba o rechaza una cuenta pendiente.
-    """
-    permission_classes = [IsAdminUser]
-
-    def post(self, request):
-        ser = ApproveUserSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-
-        try:
-            user = User.objects.get(pk=ser.validated_data["user_id"])
-        except User.DoesNotExist:
-            return Response({"error": "Usuario no encontrado."},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        if not user.is_email_verified:
-            return Response({
-                "error": "El usuario aún no ha verificado su correo."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        approved = ser.validated_data["approved"]
-        user.is_approved = approved
-
-        if not approved:
-            user.is_active = False   # desactivar si se rechaza
-
-        user.save(update_fields=["is_approved", "is_active"])
-
-        if approved:
-            send_approval_notification(user)
-
-        AuditLog.log(
-            action=AuditLog.Action.UPDATE,
-            resource="users",
-            resource_id=str(user.pk),
-            user=request.user,
-            detail={"approved": approved, "target_email": user.email},
-        )
-
-        return Response({
-            "message": f"Cuenta {'aprobada' if approved else 'rechazada'}.",
-            "user_id": str(user.pk),
-            "is_approved": approved,
-        })
-
-
-@extend_schema(tags=["auth"])
-class PendingUsersView(generics.ListAPIView):
-    """GET /api/v1/auth/users/pending/ — Lista de cuentas pendientes de aprobación."""
-    permission_classes = [IsAdminUser]
-    serializer_class   = UserListSerializer
-
-    def get_queryset(self):
-        return User.objects.filter(
-            is_email_verified=True,
-            is_approved=False,
-            is_active=True,
-        ).order_by("created_at")
-
-
 @extend_schema(
     tags=["auth"],
     summary="Iniciar sesión (paso 1)",
@@ -325,7 +257,7 @@ class PendingUsersView(generics.ListAPIView):
             }),
             description="Par JWT, o desafío de 2FA si la cuenta lo tiene activo."),
         401: OpenApiResponse(description="Correo o contraseña incorrectos."),
-        403: OpenApiResponse(description="Correo sin verificar o cuenta pendiente de aprobación."),
+        403: OpenApiResponse(description="Correo sin verificar."),
         429: OpenApiResponse(description="Cuenta o IP bloqueada por django-axes."),
     },
     examples=[
@@ -339,7 +271,7 @@ class PendingUsersView(generics.ListAPIView):
 )
 class ShieldTokenObtainPairView(TokenObtainPairView):
     """
-    Login JWT — verifica que la cuenta esté verificada y aprobada.
+    Login JWT — verifica que el correo de la cuenta esté verificado.
 
     Con 2FA activo no entrega JWT: responde {"mfa_required": true,
     "mfa_token": ...} y el cliente debe llamar a /auth/mfa/verify/.
@@ -357,11 +289,6 @@ class ShieldTokenObtainPairView(TokenObtainPairView):
                 return Response({
                     "error": "Debes verificar tu correo antes de iniciar sesión.",
                     "code":  "email_not_verified",
-                }, status=status.HTTP_403_FORBIDDEN)
-            if not user.is_approved:
-                return Response({
-                    "error": "Tu cuenta está pendiente de aprobación por el administrador.",
-                    "code":  "account_pending_approval",
                 }, status=status.HTTP_403_FORBIDDEN)
         except User.DoesNotExist:
             pass  # Dejar que el serializer maneje el 401 normal

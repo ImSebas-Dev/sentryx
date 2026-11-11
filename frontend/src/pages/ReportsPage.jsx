@@ -238,6 +238,7 @@ export default function ReportsPage() {
       <PageHeader
         icon={FileText}
         title="Informes"
+        guide="reports"
         description="Descarga un resumen semanal o mensual de las alertas que has generado."
       />
 

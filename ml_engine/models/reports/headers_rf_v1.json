@@ -4,9 +4,9 @@
   "precision": 1.0,
   "recall": 1.0,
   "roc_auc": 1.0,
-  "f1_cv_mean": 0.9978,
-  "n_train": 2405,
-  "n_test": 602,
+  "f1_cv_mean": 0.9997,
+  "n_train": 2400,
+  "n_test": 601,
   "false_positives": 0,
   "false_negatives": 0,
   "n_features": 23

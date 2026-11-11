@@ -20,8 +20,21 @@ PANEL_HTML = """<!doctype html>
   th, td { text-align: left; padding: 8px; border-bottom: 1px solid #8884; white-space: nowrap; }
   button { font: inherit; padding: 4px 10px; margin-right: 4px; cursor: pointer; }
   #err { color: #c50f1f; min-height: 20px; }
+  .guide { border: 1px solid #8884; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
+  .guide summary { font-weight: 600; cursor: pointer; }
+  .guide ol { margin: 8px 0 0; padding-left: 20px; }
 </style></head><body>
 <h1>Red de alerta: panel del operador</h1>
+<details class="guide" open>
+  <summary>Cómo usar este panel</summary>
+  <ol>
+    <li>Las tarjetas resumen cuántos nodos, reportes e indicadores tiene la red.</li>
+    <li>Busca en la tabla los nodos con estado «pending»: son empresas que pidieron entrar.</li>
+    <li>Confirma con cada empresa, por un canal conocido, que la solicitud es suya. El nombre lo escribe quien se registra.</li>
+    <li>Pulsa «Aprobar» para darle acceso. La empresa aún debe reclamar su clave.</li>
+    <li>Pulsa «Suspender» si un nodo envía reportes falsos o abusa de la red.</li>
+  </ol>
+</details>
 <div id="err" role="alert"></div>
 <div class="cards" id="metrics"></div>
 <div class="wrap"><table>

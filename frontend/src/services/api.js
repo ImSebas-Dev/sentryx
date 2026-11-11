@@ -72,14 +72,12 @@ export const authAPI = {
   resendVerification: (data) => api.post('/auth/resend-verification/', data),
   passwordReset: (data) => api.post('/auth/password-reset/', data),
   passwordResetConfirm: (data) => api.post('/auth/password-reset/confirm/', data),
-  pendingUsers: () => api.get('/auth/users/pending/'),
   // Verificación en dos pasos
   mfaVerify:  (data) => api.post('/auth/mfa/verify/', data),
   mfaSetup:   ()     => api.post('/auth/mfa/setup/'),
   mfaEnable:  (code) => api.post('/auth/mfa/enable/', { code }),
   mfaDisable: (data) => api.post('/auth/mfa/disable/', data),
   mfaReset:   (userId) => api.post(`/auth/users/${userId}/mfa/reset/`),
-  approveUser: (data) => api.post(`/auth/users/approve/`, data),
 }
 
 export const alertsAPI = {

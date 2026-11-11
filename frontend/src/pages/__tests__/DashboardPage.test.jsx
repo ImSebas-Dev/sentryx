@@ -132,7 +132,7 @@ describe('DashboardPage — alertas recientes', () => {
     await waitFor(() => {
       expect(screen.getByText('Alertas recientes')).toBeInTheDocument()
     })
-    await user.click(screen.getByText(/ver todas/i))
+    await user.click(screen.getByRole('button', { name: /ver todas/i }))
     expect(mockNavigate).toHaveBeenCalledWith('/alerts')
   })
 

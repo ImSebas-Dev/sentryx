@@ -8,6 +8,7 @@ import { ShieldCheck, ScanSearch, Layers3, LockKeyhole, Eye, EyeOff } from 'luci
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
 import { tone } from './UI'
+import PageGuide from './PageGuide'
 
 const FEATURES = [
   { icon: Layers3,     title: 'Ensemble de tres modelos', text: 'Encabezados, contenido y URLs se analizan por separado y se combinan en un único score.' },
@@ -61,8 +62,9 @@ function BrandPanel() {
  * @param status    Icono de estado grande (pantallas de éxito/error)
  * @param tagline   Muestra el eslogan bajo la marca (solo en el login)
  * @param footer    Contenido bajo la tarjeta (enlaces)
+ * @param guide     Id de la guía paso a paso en components/guides.js
  */
-export default function AuthShell({ title, subtitle, status, tagline = false, footer, children, wide = false }) {
+export default function AuthShell({ title, subtitle, status, tagline = false, footer, guide, children, wide = false }) {
   return (
     <div className="min-h-[100dvh] grid lg:grid-cols-[minmax(0,1fr)_minmax(480px,560px)] bg-canvas">
       <BrandPanel />
@@ -102,6 +104,8 @@ export default function AuthShell({ title, subtitle, status, tagline = false, fo
               )}
               <div className={clsx((title || subtitle) && 'mt-6')}>{children}</div>
             </div>
+
+            {guide && <PageGuide key={guide} id={guide} className="mt-4" />}
 
             {footer && <div className="mt-6 text-center text-body text-fg-3">{footer}</div>}
           </div>

@@ -133,13 +133,12 @@ User = get_user_model()
 if not User.objects.filter(email='admin@sentryx.local').exists():
     u = User.objects.create_superuser('admin', 'admin@sentryx.local', 'admin123', role='admin', organization='Sentryx Demo')
     u.is_email_verified = True
-    u.is_approved = True
     u.accepted_terms = True
     u.save()
     print('Admin creado')
 else:
     User.objects.filter(email='admin@sentryx.local').update(
-        is_email_verified=True, is_approved=True, accepted_terms=True
+        is_email_verified=True, accepted_terms=True
     )
     print('Admin ya existe — actualizado')
 "
@@ -154,13 +153,12 @@ User = get_user_model()
 if not User.objects.filter(email='analista@sentryx.local').exists():
     u = User.objects.create_user('analista', 'analista@sentryx.local', 'analista123', role='analyst', organization='Sentryx Demo')
     u.is_email_verified = True
-    u.is_approved = True
     u.accepted_terms = True
     u.save()
     print('Analista creado')
 else:
     User.objects.filter(email='analista@sentryx.local').update(
-        is_email_verified=True, is_approved=True, accepted_terms=True
+        is_email_verified=True, accepted_terms=True
     )
     print('Analista ya existe — actualizado')
 "

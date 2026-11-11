@@ -41,7 +41,7 @@ class UserMeSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "email", "role", "organization",
             "first_name", "last_name", "date_joined",
-            "is_email_verified", "is_approved",
+            "is_email_verified",
             "mfa_enabled", "mfa_enabled_at", "mfa_setup_required",
             "mfa_recovery_codes_remaining",
         ]
@@ -50,7 +50,7 @@ class UserMeSerializer(serializers.ModelSerializer):
         # Tampoco quites organization: separa los datos entre empresas y el usuario
         # podría pasarse a otra con PATCH. La cambia un admin desde /admin/.
         read_only_fields = ["id", "username", "email", "role", "organization", "date_joined",
-                            "is_email_verified", "is_approved",
+                            "is_email_verified",
                             "mfa_enabled", "mfa_enabled_at"]
 
     mfa_setup_required = serializers.BooleanField(read_only=True)
@@ -63,14 +63,13 @@ class UserMeSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     """
     Lista de usuarios para el panel de administración.
-    Incluye email y created_at necesarios para la página de usuarios pendientes.
     """
 
     class Meta:
         model  = User
         fields = [
             "id", "username", "email", "role", "organization",
-            "is_active", "is_email_verified", "is_approved", "mfa_enabled",
+            "is_active", "is_email_verified", "mfa_enabled",
             "date_joined", "last_login", "created_at",
         ]
         read_only_fields = fields

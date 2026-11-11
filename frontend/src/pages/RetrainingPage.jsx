@@ -238,6 +238,7 @@ export default function RetrainingPage() {
       <PageHeader
         icon={Brain}
         title="Reentrenamiento del modelo"
+        guide="retraining"
         description="Mejora la detección con las correcciones que marcan los analistas."
         actions={
           <button onClick={() => { refetchStats(); refetchHistory() }}

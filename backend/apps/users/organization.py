@@ -22,6 +22,5 @@ def users_of_org(organization: str):
     if not organization:
         return get_user_model().objects.none()
     return get_user_model().objects.filter(
-        organization=organization, is_active=True, is_approved=True,
-        is_email_verified=True,
+        organization=organization, is_active=True, is_email_verified=True,
     )

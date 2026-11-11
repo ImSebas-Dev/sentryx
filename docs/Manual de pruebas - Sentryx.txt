@@ -43,7 +43,7 @@ PASOS DE INSTALACIÓN (primera vez)
        - Construye las imágenes Docker (3-5 minutos)
        - Levanta PostgreSQL y Redis
        - Aplica las migraciones de la base de datos
-       - Crea los usuarios admin y analista con cuentas aprobadas
+       - Crea los usuarios admin y analista con el correo verificado
        - Levanta todos los servicios
 
   4. Al terminar, abrir en el navegador:
@@ -53,8 +53,8 @@ CREDENCIALES DE PRUEBA
 ──────────────────────
   Email:      admin@sentryx.local
   Contraseña: admin123
-  Rol:        Administrador — ve todas las alertas de todos los usuarios,
-              puede aprobar cuentas nuevas y disparar reentrenamiento
+  Rol:        Administrador — ve todas las alertas de todos los usuarios
+              y puede disparar reentrenamiento
 
   Email:      analista@sentryx.local
   Contraseña: analista123
@@ -96,8 +96,8 @@ COMANDOS ÚTILES DEL DÍA A DÍA
 
 CONFIGURACIÓN DE SENDGRID (envío de correos)
 ─────────────────────────────────────────────
-  Sentryx envía correos para verificación de cuenta, aprobación
-  y recuperación de contraseña usando SendGrid.
+  Sentryx envía correos para verificación de cuenta y
+  recuperación de contraseña usando SendGrid.
 
   Para configurarlo:
   1. Crear cuenta gratis en https://sendgrid.com (100 correos/día)
@@ -155,15 +155,15 @@ SOLUCIÓN DE PROBLEMAS FRECUENTES
     Acceder a http://localhost:8080
 
   La cuenta nueva no puede iniciar sesión:
-    El sistema requiere verificación de correo + aprobación del admin.
-    Para aprobar sin correo (solo desarrollo):
+    El sistema requiere verificación de correo.
+    Para verificar sin correo (solo desarrollo):
       docker compose exec backend python manage.py shell -c "
       from django.contrib.auth import get_user_model
       User = get_user_model()
       User.objects.filter(email='CORREO_AQUI').update(
-          is_email_verified=True, is_approved=True
+          is_email_verified=True
       )
-      print('Cuenta aprobada')
+      print('Correo verificado')
       "
 
 
@@ -308,11 +308,11 @@ Orden recomendado para una demostración completa:
 
 
 ──────────────────────────────────────────────────────────────
-  3.0 REGISTRO Y APROBACIÓN DE CUENTA
+  3.0 REGISTRO DE CUENTA
 ──────────────────────────────────────────────────────────────
 QUÉ ES:
-  El sistema tiene registro abierto pero con aprobación manual.
-  Un usuario nuevo no puede entrar hasta que el admin lo apruebe.
+  El sistema tiene registro abierto. Un usuario nuevo no puede
+  entrar hasta que verifique su correo.
 
 FLUJO COMPLETO:
   1. Ir a http://localhost/register
@@ -323,10 +323,15 @@ FLUJO COMPLETO:
      está configurado) o ver el enlace en los logs del backend:
        docker compose logs backend -f | grep "verify-email"
   5. Hacer clic en el enlace de verificación
-  6. Iniciar sesión con admin@sentryx.local / admin123
-  7. Ir al menú "Usuarios pendientes" (visible solo para admins)
-  8. Hacer clic en "Aprobar" — el nuevo usuario recibe correo de confirmación
-  9. El nuevo usuario ya puede iniciar sesión
+  6. El nuevo usuario ya puede iniciar sesión
+
+ORGANIZACIÓN:
+  La primera persona que registra un nombre de organización lo toma.
+  Si el nombre ya existe, la cuenta se crea sin organización, para que
+  nadie entre a los datos de otra empresa con solo escribir su nombre.
+  Para agregarla a su empresa: entrar a http://localhost/admin/ como
+  superusuario, abrir Usuarios, elegir la cuenta y cambiar "Organization".
+  Ahí también se cambia el rol o se desactiva una cuenta ("Active").
 
 AISLAMIENTO POR USUARIO:
   Cada usuario solo ve sus propias alertas. El admin ve todas.
@@ -857,7 +862,7 @@ ESTÁNDARES APLICADOS:
     ✓ Activa su propia verificación en dos pasos
     ✓ Añade IOCs manuales a Threat Intel
     ✗ No puede ver alertas de otros usuarios
-    ✗ No puede aprobar cuentas ni reentrenar el modelo
+    ✗ No puede disparar el reentrenamiento manual
 
   ROL VIEWER (crear desde /admin/ si se necesita)
     ✓ Ve sus propias alertas (solo lectura)
@@ -884,14 +889,14 @@ ESTÁNDARES APLICADOS:
         print(t['phishing_type'], ':', t['c'])
     "
 
-  Aprobar una cuenta manualmente sin correo:
+  Verificar una cuenta manualmente sin correo:
     docker compose exec backend python manage.py shell -c "
     from django.contrib.auth import get_user_model
     User = get_user_model()
     User.objects.filter(email='CORREO_AQUI').update(
-        is_email_verified=True, is_approved=True
+        is_email_verified=True
     )
-    print('Cuenta aprobada')
+    print('Correo verificado')
     "
 
   Ver todos los usuarios registrados:
@@ -899,7 +904,7 @@ ESTÁNDARES APLICADOS:
     from django.contrib.auth import get_user_model
     User = get_user_model()
     for u in User.objects.all():
-        print(u.email, u.role, 'aprobado:', u.is_approved, 'verificado:', u.is_email_verified)
+        print(u.email, u.role, 'verificado:', u.is_email_verified)
     "
 
   Verificar que el ML Engine tiene los modelos cargados:

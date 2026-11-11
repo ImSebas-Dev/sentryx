@@ -254,7 +254,7 @@ export default function SecurityPage() {
 
   return (
     <div className="page">
-      <PageHeader icon={KeyRound} title="Seguridad de la cuenta"
+      <PageHeader icon={KeyRound} title="Seguridad de la cuenta" guide="security"
                   description="Protege tu acceso a Sentryx con la verificación en dos pasos." />
 
       {user?.mfa_setup_required && (

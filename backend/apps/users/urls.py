@@ -4,7 +4,6 @@ from apps.users.views import (
     ShieldTokenObtainPairView, UserMeView, UserListView,
     RegisterView, VerifyEmailView, ResendVerificationView,
     PasswordResetRequestView, PasswordResetConfirmView,
-    ApproveUserView, PendingUsersView,
 )
 from apps.users.mfa_views import (
     MFASetupView, MFAEnableView, MFADisableView, MFAVerifyView, MFAAdminResetView,
@@ -29,7 +28,5 @@ urlpatterns = [
     # Perfil y admin
     path("me/",                       UserMeView.as_view(),                name="user_me"),
     path("users/",                    UserListView.as_view(),              name="user_list"),
-    path("users/pending/",            PendingUsersView.as_view(),          name="users_pending"),
-    path("users/approve/",            ApproveUserView.as_view(),           name="user_approve"),
     path("users/<uuid:user_id>/mfa/reset/", MFAAdminResetView.as_view(),   name="user_mfa_reset"),
 ]

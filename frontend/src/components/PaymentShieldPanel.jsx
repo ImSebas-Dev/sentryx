@@ -12,6 +12,7 @@ import { paymentShieldAPI } from '../services/api'
 import { useAuth } from '../store/AuthContext'
 import { ErrorBanner, Spinner, Section } from './UI'
 import Modal from './Modal'
+import PageGuide from './PageGuide'
 
 const STATUS_LABELS = {
   pending_verification: 'Pendiente de verificación',
@@ -70,6 +71,7 @@ function VerifyModal({ checkId, onClose, onDone }) {
 
   return (
     <Modal title="Registrar verificación" onClose={onClose}>
+      <PageGuide id="verify-payment" className="mb-4" />
       <form onSubmit={submit} className="space-y-4">
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <div>
@@ -113,6 +115,7 @@ export default function PaymentShieldPanel({ shield }) {
              description="Compara el correo con tu directorio de proveedores. No cambia el score del modelo.">
       <div className="space-y-4">
         <Traffic shield={shield} />
+        <PageGuide id="payment-shield-panel" />
 
         <ul className="space-y-1.5" aria-label="Validaciones">
           {(shield.checks || []).map(check => {

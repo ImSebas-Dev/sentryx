@@ -79,6 +79,7 @@ export function IncidentsPage() {
       <PageHeader
         icon={FolderOpen}
         title="Incidentes"
+        guide="incidents"
         description={`${count} incidentes en total`}
         actions={isAnalyst && !showCreate && (
           <button onClick={() => setShowCreate(true)} className="btn-primary">
@@ -242,6 +243,7 @@ export function ThreatIntelPage() {
       <PageHeader
         icon={Globe2}
         title="Threat Intelligence"
+        guide="threat-intel"
         description={`IOCs activos: ${stats?.total_active ?? '…'}`}
         actions={isAnalyst && !showAddIOC && (
           <button onClick={() => setShowAddIOC(true)} className="btn-primary">

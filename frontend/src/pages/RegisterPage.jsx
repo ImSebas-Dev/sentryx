@@ -81,8 +81,7 @@ export default function RegisterPage() {
       <ol className="space-y-3 mb-6">
         {[
           'Abre el correo y haz clic en el enlace para confirmar tu dirección.',
-          'Un administrador revisará y aprobará tu solicitud.',
-          'Recibirás otro correo cuando tu cuenta esté lista.',
+          'Vuelve a Sentryx e inicia sesión con tu correo y tu contraseña.',
         ].map((text, i) => (
           <li key={i} className="flex gap-3 text-body text-fg-2">
             <span className="h-6 w-6 rounded-full bg-brand-tint text-brand-fg text-caption font-semibold
@@ -98,8 +97,9 @@ export default function RegisterPage() {
   return (
     <AuthShell
       wide
-      title="Solicitar acceso"
-      subtitle="Crea tu cuenta. Un administrador la aprobará después de verificar tu correo."
+      title="Crear cuenta"
+      subtitle="Regístrate y verifica tu correo para empezar a usar Sentryx."
+      guide="register"
       footer={
         <p>¿Ya tienes cuenta?{' '}<Link to="/login" className="link">Iniciar sesión</Link></p>
       }
@@ -125,7 +125,11 @@ export default function RegisterPage() {
           <input id="organization" type="text" autoComplete="organization"
                  className="input input-lg" placeholder="Mi empresa S.A.S."
                  value={form.organization}
-                 onChange={e => set('organization', e.target.value)} />
+                 onChange={e => set('organization', e.target.value)}
+                 aria-describedby="organization-hint" />
+          <p id="organization-hint" className="field-hint">
+            Si tu empresa ya usa Sentryx, pide a su administrador que te agregue.
+          </p>
         </div>
 
         <div>

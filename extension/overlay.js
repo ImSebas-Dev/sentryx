@@ -60,7 +60,7 @@ if (!window.__sentryxOverlayLoaded) {
     .box.ok   { background: #0e700e; }
     h2 { font-size: 16px; line-height: 22px; margin: 0 0 6px; font-weight: 600; }
     p  { margin: 0 0 8px; }
-    ul { margin: 0 0 10px; padding-left: 20px; }
+    ul, ol { margin: 0 0 10px; padding-left: 20px; }
     textarea { width: 100%; box-sizing: border-box; border-radius: 4px; border: 0;
                padding: 6px 8px; font: inherit; margin-bottom: 8px; color: #242424; }
     button { font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 4px;
@@ -163,7 +163,11 @@ if (!window.__sentryxOverlayLoaded) {
     render(el('div', { className: 'box', role: 'alert' },
       el('h2', {}, 'Este correo pide un pago y no coincide con los datos de tu proveedor'),
       el('p', {}, shield.message || ''),
-      el('p', {}, callText),
+      stepList([
+        'No pagues ni abras enlaces todavía: los desactivamos en este correo.',
+        callText,
+        'Si confirmas que todo está bien, pulsa «Entiendo el riesgo». Tu decisión queda registrada.',
+      ]),
       status,
       ack,
     ));
@@ -172,6 +176,10 @@ if (!window.__sentryxOverlayLoaded) {
   // ── Capa de bloqueo de cuatro ojos ──────────────────────
   // No agregues aquí un botón para saltarse el bloqueo: la decisión es de la
   // segunda persona. Ver la limitación en extension/README.md.
+  function stepList(steps) {
+    return el('ol', {}, steps.map(step => el('li', {}, step)));
+  }
+
   function reasonList(reasons) {
     return el('ul', {}, (reasons || []).map(r => el('li', {}, r.detail || '')));
   }
@@ -193,7 +201,13 @@ if (!window.__sentryxOverlayLoaded) {
     } }, 'Pedir aprobación');
     render(el('div', { className: 'box', role: 'alert' },
       el('h2', {}, 'Este correo está bloqueado hasta que otra persona lo apruebe'),
-      reasonList(state.reasons), note, status, button));
+      reasonList(state.reasons),
+      stepList([
+        'No pagues, no entregues claves ni abras adjuntos.',
+        'Si quieres, escribe una nota para quien va a revisar.',
+        'Pulsa «Pedir aprobación» y espera aquí la respuesta.',
+      ]),
+      note, status, button));
   }
 
   function renderRequest(state, request) {
@@ -217,6 +231,7 @@ if (!window.__sentryxOverlayLoaded) {
       render(el('div', { className: 'box', role: 'alert' },
         el('h2', {}, 'La aprobación fue rechazada: no continúes'),
         request.decision_note ? el('p', {}, `Nota: ${request.decision_note}`) : '',
+        el('p', {}, 'No hagas lo que pide este correo. Si ya abriste un enlace o un adjunto, pulsa el botón.'),
         el('button', { onClick: () => window.open(guided, '_blank', 'noopener') },
            '¿Ya hiciste clic?')));
     } else {

@@ -12,6 +12,7 @@ import {
   LoadingScreen, EmptyState, ErrorBanner, MessageBar, PageHeader, Spinner,
 } from '../components/UI'
 import Modal from '../components/Modal'
+import PageGuide from '../components/PageGuide'
 import { computeDv, isValidNit, maskAccount } from '../utils/nit'
 
 const EMPTY = {
@@ -64,6 +65,7 @@ function SupplierForm({ initial, onClose, onSaved }) {
   return (
     <Modal title={initial ? 'Editar proveedor' : 'Nuevo proveedor'} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        <PageGuide id="supplier-form" />
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <div>
           <label htmlFor="s-name" className="field-label">Nombre</label>
@@ -169,6 +171,7 @@ export default function SuppliersPage() {
       <PageHeader
         icon={Building2}
         title="Proveedores"
+        guide="suppliers"
         description="Directorio de confianza con el que el Escudo de pagos compara cada correo."
         actions={isAdmin && (
           <button type="button" onClick={() => setEditing('new')} className="btn-primary">

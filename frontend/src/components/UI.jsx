@@ -5,6 +5,7 @@
  * como `text-${tono}-fg`) para que Tailwind las detecte al compilar.
  */
 import { clsx } from 'clsx'
+import PageGuide from './PageGuide'
 import {
   AlertCircle, CheckCircle2, Info, AlertTriangle, X, ChevronLeft, ChevronRight,
 } from 'lucide-react'
@@ -255,24 +256,28 @@ export function ErrorBanner({ message, onDismiss }) {
 }
 
 // ── Encabezado de página ──────────────────────────────────
-export function PageHeader({ title, description, icon: Icon, actions, meta }) {
+// Pasa guide con el id de components/guides.js para mostrar el paso a paso de la pantalla
+export function PageHeader({ title, description, icon: Icon, actions, meta, guide }) {
   return (
-    <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
-      <div className="flex items-start gap-3 min-w-0">
-        {Icon && (
-          <div className="hidden sm:flex h-10 w-10 rounded-lg bg-brand-tint text-brand-fg
-                          items-center justify-center flex-shrink-0">
-            <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+    <>
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          {Icon && (
+            <div className="hidden sm:flex h-10 w-10 rounded-lg bg-brand-tint text-brand-fg
+                            items-center justify-center flex-shrink-0">
+              <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h1 className="text-page-title">{title}</h1>
+            {description && <p className="text-fg-3 text-body mt-0.5">{description}</p>}
+            {meta}
           </div>
-        )}
-        <div className="min-w-0">
-          <h1 className="text-page-title">{title}</h1>
-          {description && <p className="text-fg-3 text-body mt-0.5">{description}</p>}
-          {meta}
         </div>
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 flex-shrink-0">{actions}</div>}
-    </header>
+        {actions && <div className="flex flex-wrap items-center gap-2 flex-shrink-0">{actions}</div>}
+      </header>
+      {guide && <PageGuide key={guide} id={guide} />}
+    </>
   )
 }
 

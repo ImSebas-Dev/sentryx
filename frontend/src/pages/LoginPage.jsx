@@ -13,7 +13,7 @@ function loginErrorMessage(err) {
   if (status === 401) return 'Correo o contraseña incorrectos.'
   if (status === 429) return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'
   if (!err.response)  return 'No se pudo conectar con el servidor. Revisa tu conexión.'
-  // 403: correo sin verificar o cuenta pendiente de aprobación
+  // 403: correo sin verificar
   return data?.error || data?.detail || 'No se pudo iniciar sesión.'
 }
 
@@ -150,7 +150,7 @@ export default function LoginPage() {
 
   if (mfaToken) {
     return (
-      <AuthShell tagline title="Iniciar sesión" subtitle={form.email}>
+      <AuthShell tagline title="Iniciar sesión" subtitle={form.email} guide="login-mfa">
         <MfaStep mfaToken={mfaToken} onRestart={restart} />
       </AuthShell>
     )
@@ -161,10 +161,11 @@ export default function LoginPage() {
       tagline
       title="Iniciar sesión"
       subtitle="Usa tu correo y contraseña de Sentryx."
+      guide="login"
       footer={
         <p>
           ¿No tienes cuenta?{' '}
-          <Link to="/register" className="link">Solicitar acceso</Link>
+          <Link to="/register" className="link">Crear cuenta</Link>
         </p>
       }
     >

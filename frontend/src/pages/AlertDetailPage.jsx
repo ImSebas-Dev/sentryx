@@ -15,6 +15,7 @@ import {
 } from '../components/UI'
 import PaymentShieldPanel from '../components/PaymentShieldPanel'
 import FourEyesPanel from '../components/FourEyesPanel'
+import PageGuide from '../components/PageGuide'
 import CommunityNotice from '../components/CommunityNotice'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -124,6 +125,8 @@ export default function AlertDetailPage() {
           <p className="text-fg-3 text-body mt-1">{alert.description}</p>
         </div>
       </div>
+
+      <PageGuide id="alert-detail" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
 

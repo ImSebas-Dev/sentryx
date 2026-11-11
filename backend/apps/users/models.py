@@ -2,7 +2,6 @@
 Sentryx v2 — Modelo de usuario actualizado.
 Añade:
     - email único obligatorio
-    - is_approved: aprobación manual por admin
     - is_email_verified: verificación por correo
     - email_verification_token / password_reset_token
     - organization (para mostrar en el panel de admin)
@@ -38,8 +37,6 @@ class ShieldUser(AbstractUser):
     # ── Estados de la cuenta ──────────────────────────────
     is_email_verified = models.BooleanField(default=False,
                             help_text="El usuario confirmó su correo")
-    is_approved       = models.BooleanField(default=False,
-                            help_text="El administrador aprobó esta cuenta")
 
     # ── Tokens de un solo uso ─────────────────────────────
     email_verification_token    = models.CharField(max_length=100, blank=True, default=_token)
@@ -95,8 +92,8 @@ class ShieldUser(AbstractUser):
 
     @property
     def can_login(self):
-        """Un usuario solo puede entrar si verificó el correo Y fue aprobado."""
-        return self.is_active and self.is_email_verified and self.is_approved
+        """Un usuario solo puede entrar si está activo y verificó el correo."""
+        return self.is_active and self.is_email_verified
 
     # ── Helpers de tokens ─────────────────────────────────
     def rotate_verification_token(self):

@@ -59,7 +59,7 @@ export function VerifyEmailPage() {
     <AuthShell
       status={{ icon: MailCheck, tone: 'green' }}
       title="Correo verificado"
-      subtitle="Tu cuenta está pendiente de aprobación por el administrador. Recibirás un correo cuando esté lista."
+      subtitle="Tu cuenta está lista. Ya puedes iniciar sesión con tu correo y tu contraseña."
     >
       <Link to="/login" className="btn-primary btn-lg w-full">Ir al inicio de sesión</Link>
     </AuthShell>
@@ -79,6 +79,7 @@ export function VerifyEmailPage() {
     <AuthShell
       status={{ icon: MailWarning, tone: 'red' }}
       title="Enlace inválido"
+      guide="verify-email-error"
       subtitle={msg}
     >
       <div className="space-y-3">
@@ -128,6 +129,7 @@ export function ForgotPasswordPage() {
     <AuthShell
       title="Recuperar contraseña"
       subtitle="Ingresa tu correo y te enviaremos un enlace para restablecerla."
+      guide="forgot-password"
       footer={<BackToLogin />}
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -193,6 +195,7 @@ export function ResetPasswordPage() {
       status={{ icon: KeyRound, tone: 'blue' }}
       title="Nueva contraseña"
       subtitle="Elige una contraseña de al menos 10 caracteres."
+      guide="reset-password"
       footer={<BackToLogin />}
     >
       <form onSubmit={handleSubmit} className="space-y-5">

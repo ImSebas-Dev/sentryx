@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { fourEyesAPI } from '../services/api'
 import { ErrorBanner, MessageBar, Spinner } from './UI'
+import PageGuide from './PageGuide'
 
 export const REQUEST_STATUS = {
   pending:   { label: 'Pendiente', intent: 'info' },
@@ -101,6 +102,8 @@ export default function FourEyesPanel({ alertId, reasons }) {
         <ul className="list-disc pl-5 space-y-1 text-body text-fg-2">
           {reasons.map((reason, i) => <li key={i}>{reason.detail}</li>)}
         </ul>
+
+        {canRequest && <PageGuide id="four-eyes-panel" />}
 
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
 

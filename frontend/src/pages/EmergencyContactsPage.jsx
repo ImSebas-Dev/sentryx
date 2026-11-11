@@ -9,6 +9,7 @@ import {
   EmptyState, ErrorBanner, LoadingScreen, MessageBar, PageHeader, Spinner,
 } from '../components/UI'
 import Modal from '../components/Modal'
+import PageGuide from '../components/PageGuide'
 
 const KIND_LABELS = { bank: 'Banco', authority: 'Autoridad', internal: 'Interno' }
 const EMPTY = { name: '', phone: '', url: '', kind: 'bank' }
@@ -43,6 +44,7 @@ function ContactForm({ initial, onClose, onSaved }) {
   return (
     <Modal title={initial ? 'Editar contacto' : 'Nuevo contacto'} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        <PageGuide id="contact-form" />
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <div>
           <label htmlFor="c-name" className="field-label">Nombre</label>
@@ -110,7 +112,7 @@ export default function EmergencyContactsPage() {
 
   return (
     <div className="page">
-      <PageHeader icon={PhoneCall} title="Contactos de emergencia"
+      <PageHeader icon={PhoneCall} title="Contactos de emergencia" guide="emergency-contacts"
         description="Aparecen en el asistente cuando alguien cae en un phishing."
         actions={(
           <button type="button" onClick={() => setEditing('new')} className="btn-primary">

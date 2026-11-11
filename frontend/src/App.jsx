@@ -11,7 +11,6 @@ import AnalyzePage   from './pages/AnalyzePage'
 import { IncidentsPage, ThreatIntelPage } from './pages/OtherPages'
 import { Spinner } from './components/UI'
 import RetrainingPage from './pages/RetrainingPage'
-import PendingUsersPage from './pages/PendingUsersPage'
 import ReportsPage from './pages/ReportsPage'
 import SecurityPage from './pages/SecurityPage'
 import { TermsPage, PrivacyPage, AccessibilityPage } from './pages/LegalPages'
@@ -56,7 +55,6 @@ function AppRoutes() {
               <Route path="threat-intel"        element={<ThreatIntelPage />} />
               <Route path="retraining"          element={<RetrainingPage />} />
               <Route path="reports"             element={<ReportsPage />} />
-              <Route path="pending-users"       element={<PendingUsersPage />} />
               <Route path="security"            element={<SecurityPage />} />
               <Route path="suppliers"           element={<SuppliersPage />} />
               <Route path="approvals"           element={<ApprovalsPage />} />

@@ -106,11 +106,10 @@ export function TermsPage() {
         </p>
       </Section>
 
-      <Section title="3. Registro y aprobación de cuentas" id="s-register">
+      <Section title="3. Registro de cuentas" id="s-register">
         <p>Para usar el Sistema debes:</p>
         <ul className="list-disc list-inside space-y-1 pl-2">
           <li>Proporcionar un correo electrónico válido y verificarlo.</li>
-          <li>Esperar la aprobación manual de un administrador.</li>
           <li>Mantener la confidencialidad de tus credenciales de acceso.</li>
           <li>Aceptar estos Términos y la Política de Privacidad.</li>
         </ul>
@@ -328,9 +327,10 @@ export function PrivacyPage() {
       <Section title="9. Cookies" id="p-cookies">
         <p>
           Sentryx <strong className="text-fg font-semibold">no usa cookies de rastreo</strong>.
-          Usamos exclusivamente el almacenamiento local del navegador (localStorage)
-          para guardar el token JWT de sesión. Este dato no se comparte con terceros
-          y se elimina al cerrar sesión.
+          Usamos el almacenamiento local del navegador (localStorage) para guardar el
+          token JWT de sesión, que se elimina al cerrar sesión, y tus preferencias de
+          interfaz: el tema y las guías que ocultaste. Estos datos no se comparten con
+          terceros.
         </p>
       </Section>
 

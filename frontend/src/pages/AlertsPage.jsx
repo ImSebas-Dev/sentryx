@@ -117,6 +117,7 @@ export default function AlertsPage() {
       <PageHeader
         icon={Bell}
         title="Alertas"
+        guide="alerts"
         description={`${count} alertas en total`}
         actions={<>
           <button onClick={() => setShowFilters(s => !s)}

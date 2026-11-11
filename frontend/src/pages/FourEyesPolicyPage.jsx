@@ -84,7 +84,7 @@ export default function FourEyesPolicyPage() {
 
   return (
     <div className="page">
-      <PageHeader icon={ShieldCheck} title="Política de cuatro ojos"
+      <PageHeader icon={ShieldCheck} title="Política de cuatro ojos" guide="four-eyes-policy"
         description="Define cuándo un correo necesita la aprobación de una segunda persona." />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}

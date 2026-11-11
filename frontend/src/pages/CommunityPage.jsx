@@ -90,7 +90,7 @@ export default function CommunityPage() {
 
   return (
     <div className="page">
-      <PageHeader icon={Network} title="Red de alerta"
+      <PageHeader icon={Network} title="Red de alerta" guide="community"
         description="Recibe avisos tempranos cuando otras pymes de tu sector y región reciben una campaña." />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}

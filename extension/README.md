@@ -27,7 +27,7 @@ inyecta el script de lectura cuando lo necesita.
        pedirá permiso para conectarte a ese servidor; acéptalo. El permiso se puede
        retirar después en los detalles de la extensión.
    - **Correo** y **contraseña** de tu cuenta de Sentryx (rol analista o administrador,
-     con el correo verificado y la cuenta aprobada).
+     con el correo verificado).
 3. Pulsa **Guardar y conectar**.
 4. Si tu cuenta tiene **verificación en dos pasos**, aparece el campo **Código de
    verificación**: escribe el código de 6 dígitos de Google Authenticator o Microsoft

@@ -9,7 +9,7 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
 import {
   ShieldCheck, Bell, FolderOpen, Globe2, FileSearch, LogOut,
-  LayoutDashboard, Brain, Users, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon, Siren, PhoneCall, Network,
+  LayoutDashboard, Brain, Menu, X, FileText, KeyRound, Building2, UserCheck, ShieldCheck as PolicyIcon, Siren, PhoneCall, Network,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ThemeMenu from './ThemeMenu'
@@ -97,11 +97,7 @@ function SidebarContent({ onNavClick, pendingApprovals }) {
   // Oculta las páginas por rol con estas marcas; el backend vuelve a exigir el permiso
   const allowed = item => (!item.analystOnly || user?.role !== 'viewer')
                        && (!item.adminOnly || user?.role === 'admin')
-  const sections = NAV_SECTIONS
-    .map(s => (user?.role === 'admin' && s.title === 'Gestión'
-        ? { ...s, items: [...s.items, { to: '/pending-users', label: 'Usuarios pendientes', icon: Users }] }
-        : s))
-    .map(s => ({ ...s, items: s.items.filter(allowed) }))
+  const sections = NAV_SECTIONS.map(s => ({ ...s, items: s.items.filter(allowed) }))
 
   return (
     <div className="flex flex-col h-full">

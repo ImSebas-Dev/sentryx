@@ -174,6 +174,7 @@ export default function AnalyzePage() {
       <PageHeader
         icon={FileSearch}
         title="Analizar correo"
+        guide="analyze"
         description="Pega los datos del correo para analizarlo con el ensemble de tres modelos. Los datos no se almacenan en texto plano."
         actions={
           <button type="button" onClick={() => { setForm(SAMPLE_EMAIL); setResult(null) }}

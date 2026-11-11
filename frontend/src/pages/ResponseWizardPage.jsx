@@ -12,6 +12,7 @@ import {
 import { clsx } from 'clsx'
 import { responseAPI } from '../services/api'
 import { ErrorBanner, MessageBar, Spinner, LoadingScreen, Section } from '../components/UI'
+import PageGuide from '../components/PageGuide'
 
 const FIFTEEN_MINUTES = 15 * 60
 
@@ -99,6 +100,7 @@ function ChooseStep({ playbooks, starting, onStart, linkedAlert }) {
         <h1 className="text-page-title">Respira. Vamos paso a paso.</h1>
         <p className="text-fg-3 text-body mt-1">Cuéntanos qué pasó y te decimos qué hacer primero.</p>
       </div>
+      <PageGuide id="respond-choose" />
       {linkedAlert && <MessageBar intent="info">Esta respuesta quedará vinculada a la alerta del correo.</MessageBar>}
       <div>
         <label htmlFor="r-when" className="field-label">¿Cuándo pasó?</label>
@@ -211,6 +213,9 @@ function StepsStep({ session, contacts, warning, caiUrl, onSession, onFinish }) 
         </div>
       </section>
 
+      {/* Deja la guía debajo del paso: en una emergencia, la acción va primero */}
+      <PageGuide id="respond-steps" />
+
       <ContactsPanel contacts={contacts} warning={warning} caiUrl={caiUrl} />
     </div>
   )
@@ -249,6 +254,7 @@ function DoneStep({ session, caiUrl, onExit }) {
         trae los hechos, la línea de tiempo y los indicadores para presentarlo ante las autoridades.
         Sentryx no envía nada por su cuenta.
       </p>
+      <PageGuide id="respond-done" />
       <ErrorBanner message={error} onDismiss={() => setError(null)} />
       <div className="flex flex-col sm:flex-row gap-2">
         <button type="button" onClick={download} disabled={downloading} className="btn-primary btn-lg">

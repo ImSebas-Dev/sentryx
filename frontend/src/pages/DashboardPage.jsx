@@ -65,6 +65,7 @@ export default function DashboardPage() {
     <div className="page">
       <PageHeader
         title="Dashboard"
+        guide="dashboard"
         description="Resumen de la actividad de phishing · se actualiza cada 30 s"
         actions={<>
           <button onClick={refetch} className="btn-secondary">

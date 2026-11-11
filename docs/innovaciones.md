@@ -25,7 +25,9 @@ Tres consecuencias:
 
 `ShieldUser.organization` es ahora la frontera entre empresas, así que dejó de poder editarse con `PATCH /auth/me/`. Dos usuarios sin organización **no** se consideran de la misma empresa. Un usuario sin organización puede analizar correos, pero no tiene proveedores ni control de cuatro ojos ni red de alerta.
 
-La organización se declara al registrarse y la valida el administrador que aprueba la cuenta: **revísala al aprobar**, porque aprobar a alguien con el nombre de otra empresa le da acceso a sus proveedores y solicitudes.
+El registro es abierto y solo exige verificar el correo. La primera persona que registra un nombre de organización lo toma. Si el nombre ya existe, sin distinguir mayúsculas, la cuenta se crea sin organización y la respuesta es la misma, para no revelar qué empresas usan el sistema. Un superusuario la agrega a su empresa desde `/admin/`. **No quites esta regla**: sin ella, escribir el nombre de otra empresa daría acceso a sus proveedores y solicitudes.
+
+**Límite conocido.** Alguien puede registrar primero el nombre de una empresa que aún no usa Sentryx. No accede a datos de esa empresa, pero un superusuario debe corregir la organización de las cuentas afectadas.
 
 ---
 
@@ -328,3 +330,13 @@ make test-hub
 ### Extensión
 
 Recarga la extensión en `chrome://extensions/` para tomar la versión 1.3.0. Analiza un correo que contenga el texto del BEC: si aplica cuatro ojos verás la capa de bloqueo con **Pedir aprobación**; si no, el banner rojo con **Entiendo el riesgo**. Ver [`extension/README.md`](../extension/README.md).
+
+## Guías paso a paso
+
+Cada pantalla donde se puede interactuar muestra sus pasos, para que una persona nueva sepa qué hacer sin ayuda.
+
+- **Aplicación web:** `frontend/src/components/PageGuide.jsx` pinta la guía. Los textos están en `frontend/src/components/guides.js`.
+- **Comportamiento:** la guía aparece abierta la primera vez. Si la persona la oculta, ese navegador lo recuerda solo para esa pantalla.
+- **Extensión y panel del operador:** tienen sus pasos en `extension/popup.html`, `extension/overlay.js` y `community_hub/app/operator_panel.py`.
+
+Al cambiar una pantalla, actualiza también su guía y cita los botones con el mismo texto que tienen en la interfaz.
